@@ -10,7 +10,7 @@
 
 
   - name: normalize docker configuration
-    smabot.base.normalize_docker: >-
+    smabot.containers.normalize_docker: >-
       {{ normalize_docker_args | default({}, True) 
       | combine({'config_ansvar': _tmp_norm_resvar}) }}
     register: _tmp_normer_res_
