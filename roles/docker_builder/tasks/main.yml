@@ -1,0 +1,77 @@
+---
+
+##     ##
+##     ## merges multiple dict/map vars together recursively
+##     ##
+##   - smabot.base.merge_vars:
+## 
+##       ## ##
+##       ## ## the name of the variable where the merged result is written back 
+##       ## ## to, if the special value "___toplvl____" is specified, the 
+##       ## ## result is added directly at ansible var toplvl, so if for example 
+##       ## ## the merged result looked like this {'foo': 'bar'}, the following 
+##       ## ## would be valid after this task: "{ foo }"
+##       ## ##
+##       ## ## optional, if unset defaulted to name of highest prio invar
+##       ## ##
+##       ## result_var: ___toplvl____
+##       result_var: docker_build
+## 
+##       ##
+##       ## list of dict/map variables which should be merged together, order 
+##       ## does matter here, as the var which comes first has the highest 
+##       ## priority if a child key/value pair is set in multiple invars
+##       ##
+##       invars: >-
+##         {{ ['docker_build'] + (extra_docker_config_maps | default([], True)) + ['docker_build_defaults'] }}
+## 
+##         
+## 
+## ##          ##
+## ##          ## the special var "___toplvl____" stands for the symbolic root 
+## ##          ## for the current complete ansible variable space, set this if 
+## ##          ## you want for example merge "{ foo }" with "{ bar.foo }", 
+## ##          ## in difference to other "normal" vars where all subkeys will 
+## ##          ## added to the merged result, only such keys will be added 
+## ##          ## which are also mentioned in another merge var, toplvl can 
+## ##          ## only be the first or last invar
+## ##          ##
+## ##        - name: ___toplvl____
+## ##
+## ##        - name: docker_build
+## ##
+## ##          ##
+## ##          ## if a var with the given name does not exist, it would normaly 
+## ##          ## result in an error, set this option to true to simply ignore 
+## ##          ## this varname if it is not set
+## ##          ##
+## ##          optional: true
+
+
+##   - include_role:
+##       name: smabot.base.merge_vars
+##     vars:
+##       merge_vars_args:
+##         result_var: docker_build
+## 
+## ##      ## if unset defaulting is active for standard magic key defaults
+## ##      ##defaulting: False/None | 'defaultkey'
+## 
+##         invars: >-
+##           {{ ['docker_build'] 
+##            + (extra_docker_config_maps | default([], True)) 
+##            + ['docker_build_defaults'] 
+##           }}
+
+  - include_role:
+      name: smabot.containers.normalize_docker
+
+  - debug:
+      var: docker_build
+
+
+## - include_tasks: handle_owners.yml
+##   loop: "{{ docker_build.images | dict2items() }}"
+##   loop_control:
+##     loop_var: _dbimg_owner_iter
+

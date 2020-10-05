@@ -1,0 +1,196 @@
+---
+
+##
+## the first part of docker build process runs in the context 
+## of the docker build slave host / ansible controller
+##
+
+  - name: determine build container name
+    set_fact:
+      _bcon_name: "{{ _dbimg_iter.value.shortname }}-builder"
+
+  - name: initialize build container for  ==>>  {{ _dbimg_iter.value.fullname }}
+    docker_container:
+      name: "{{ _bcon_name }}"
+      image: "{{ _dbimg_iter.value.parent }}"
+      state: started
+
+      ##
+      ## note: this seems to be needed to avoid that the container 
+      ##   closes immediately
+      ##
+      tty: true
+
+      ##
+      ## note: as we literally can get anything as parent, there is 
+      ##   a chance that entrypoint is set to something custom, 
+      ##   make sure we get a shell there
+      ##
+      entrypoint: '/bin/sh'
+
+      ##
+      ## note: we need a blocking noop command here to keep the 
+      ##   container running (we will exec in it later for the 
+      ##   actual build stuff), this is the recommended way to 
+      ##   do this atm
+      ##
+      command: -c tail -f /dev/null
+  
+  - name: make build container avaible as ansible host  ==>>  {{ _dbimg_iter.value.fullname }}
+    add_host:
+      name: "{{ _bcon_name }}"
+      ansible_connection: docker
+      ansible_ssh_user: root
+
+
+##
+## from here we switch into docker container for doing the actual build steps
+##
+
+  - name: container build steps
+    block:
+
+    ##
+    ## note: as we handle docker images / container as standard ansible remote hosts, we need to have python installed there, this means that any image build by this setup will contain a python installation as we will keep it installed because it is not unlikely that the user might want to install python herself as part of her plan for the image and it would be very hard to decide if python was only installed because of ansible or because it really was requested by image setup
+    ## if for a specific image the builder really, really dont want python in it we will provide a custom flag to set to force removing python again when building is through
+    ##
+
+
+      ## TODO: this step must become distro agnostic obviously
+      # ansible will need python, and since it isn't there we can only use the special raw mode
+      # note: environment does not work for raw (also not when executable is set explicitly as the docu says), so we musst pass important settings here differently
+      - name: install python
+        raw: "http_proxy={{_dbimg_iter.value.proxy.proxy.http}} https_proxy={{_dbimg_iter.value.proxy.proxy.https}} no_proxy={{_dbimg_iter.value.proxy.vars.no_proxy}} apk add --no-cache python3"
+
+        ##
+        ## note: standard facts gathering does not work because 
+        ##   python is needed for it, luckily it can be called 
+        ##   later explicitly like a normal module
+        ##
+      - name: gather facts for  ==>>  {{ _dbimg_iter.value.fullname }}
+        setup:
+
+        ##
+        ## note: this here is important, otherwise facts would not be 
+        ##   set for the delegate (our container / image to build), but 
+        ##   the default host (localhost, the docker build slave)
+        ##
+        delegate_facts: True
+
+## handle docker copy
+## do steps prepackage
+
+# TODO: handle user
+# TODO: handle proxy
+# TODO: handle certs
+
+      - name: standard distro package installs  ==>>  {{ _dbimg_iter.value.fullname }}
+        package: 
+          name: "{{ _dbimg_iter.value.packages.distro.packages | dict2items() | map(attribute='key') | list }}"
+          state: present
+
+      - name: pip3 package installs  ==>>  {{ _dbimg_iter.value.fullname }}
+        pip: 
+          name: "{{ _dbimg_iter.value.packages.pip3.packages | dict2items() | map(attribute='key') | list }}"
+          state: present
+
+## do steps postpackage
+## do dynamic env
+
+        ## TODO: add computed value back to config map
+      - name: compute envvar from shell script  ==>>  {{ _shell_env_iter.key }}
+        shell: "{{ _shell_env_iter.value }}"
+        register: _computed_env
+        loop: "{{ _dbimg_iter.value.environment.dynamic.shell | dict2items() }}"
+        loop_control:
+          loop_var: _shell_env_iter
+
+
+    ##
+    ## switch ansible context into the docker builder container by using the delegate mechanism (as using "hosts:" only works for top level playbooks)
+    ##
+    delegate_to: "{{ _bcon_name }}"
+
+    ##
+    ## here we will set the proxy for the build time
+    ##
+    environment: >-
+      {{ (_dbimg_iter.value.proxy | default({}, True)).vars | default({}, True) }}
+
+
+##
+## finally for committing and pushing we switch back to docker host
+##
+
+
+    ## prepare docker changes (ENV, EXPOSE, USER, CMD, ...)
+  - set_fact:
+
+      ## start of with port exposing, these are easy as we only need 
+      ## to copy them
+      _dchanges: >-
+        {{ _dbimg_iter.value.expose | default([], True) 
+         | map('regex_replace', '^(.*)$', "-c 'EXPOSE \\1'") | list
+        }}
+
+##  - set_fact:
+##      _dchanges: >-
+##        {{ _dchanges + (_dbimg_iter.value.get('environment', {}).static | default({}, True) 
+##         | map('regex_replace', '^(.*)$', "-c 'EXPOSE \\1'") | list
+##        }}
+##
+##
+##--change='CMD ["apachectl", "-DFOREGROUND"]' -c "EXPOSE 80"
+
+    ## TODO: create module / action plugin for this
+  - name: save build container to image  ==>>  {{ _dbimg_iter.value.fullname }}
+    command: docker commit {{ _dchanges | join(' ') }} "{{ _bcon_name }}" "{{ _dbimg_iter.value.fullname }}"
+
+
+##   - include_role: 
+##       name: hashicorp_vault_sma_login
+## 
+##     ## TODO: use a lookup here instead
+##   - block:
+## 
+##       - hashivault_read:
+##           mount_point: secrets/kv2/sma/manual/default
+##           secret: accounts/adservice/svc.integrity/pw
+##           key: usr
+##           version: 2
+##         register: _dacc_usr
+## 
+##       - hashivault_read:
+##           mount_point: secrets/kv2/sma/manual/default
+##           secret: accounts/adservice/svc.integrity/pw
+##           key: pw
+##           version: 2
+##         register: _dacc_pw
+## 
+##     environment:
+##       VAULT_TOKEN: "{{ awxcred_hashivault_token }}"
+
+
+##   - name: docker registry login
+##     docker_login:
+##       registry: "repositories.developer.sunnyportal.com:5000"
+##       username: "{{ _dacc_usr.value }}"
+##       password: "{{ _dacc_pw.value }}"
+##       reauthorize: yes
+## 
+## ## TODO: for some reason this always fails with useless error message unknown:unknown
+## ## TODO: maybe do this in the working jenkins context
+## ##  - name: tag and push to registry  ==>>  {{ _dbimg_iter.value.fullname }}
+## ##    docker_image:
+## ##      name: "{{ _dbimg_iter.value.fullname }}"
+## ##      repository: "repositories.developer.sunnyportal.com:5000/{{ _dbimg_iter.value.fullname }}"
+## ##      ##tag: 7
+## ##      force_tag: yes # might be necessary to overwrite existing images
+## ##      push: yes
+## ##      source: local
+## 
+## 
+##   - name: docker registry logout
+##     docker_login:
+##       state: absent
+

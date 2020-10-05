@@ -1,0 +1,15 @@
+---
+
+    ##
+    ## note: nothing todo atm for owners except for iterating 
+    ##   over there images
+    ##
+
+  - include_tasks: handle_image.yml
+
+    loop: >-
+      {{ _dbimg_owner_iter.value | dict2items() }}
+
+    loop_control:
+      loop_var: _dbimg_iter
+
