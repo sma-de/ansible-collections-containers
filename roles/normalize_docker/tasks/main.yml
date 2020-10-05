@@ -1,0 +1,20 @@
+---
+
+###
+### TODO: this whole role is workaround for a strange bug with updating facts from collection modules, remove it when it is not needed anymore, see corresponding role for merge vars for details
+###
+
+  - set_fact:
+      _tmp_norm_resvar: >-
+        {{ normalize_docker_args.config_ansvar | default('docker_build', True) }}
+
+
+  - name: normalize docker configuration
+    smabot.base.normalize_docker: >-
+      {{ normalize_docker_args | default({}, True) 
+      | combine({'config_ansvar': _tmp_norm_resvar}) }}
+    register: _tmp_normer_res_
+
+  - set_fact:
+      "{{ _tmp_norm_resvar }}": "{{ _tmp_normer_res_.normalized }}"
+
