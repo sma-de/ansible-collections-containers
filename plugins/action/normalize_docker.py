@@ -7,6 +7,8 @@ from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normali
 from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.proxy import ConfigNormerProxy
 from ansible_collections.smabot.base.plugins.module_utils.utils.dicting import get_subdict, SUBDICT_METAKEY_ANY
 
+from ansible_collections.smabot.containers.plugins.module_utils.common import DOCKER_CFG_DEFAULTVAR
+
 
 class DockerConfigNormalizer(NormalizerBase):
 
@@ -88,7 +90,7 @@ class ActionModule(ConfigNormalizerBase):
 
     @property
     def my_ansvar(self):
-        return 'docker_build'
+        return DOCKER_CFG_DEFAULTVAR
 
     @property
     def merge_args(self):

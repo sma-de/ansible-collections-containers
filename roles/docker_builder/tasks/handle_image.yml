@@ -5,14 +5,18 @@
 ## of the docker build slave host / ansible controller
 ##
 
+  - set_fact:
+       _cur_dockimg: "{{ _dbimg_iter.value }}"
+
+
   - name: determine build container name
     set_fact:
-      _bcon_name: "{{ _dbimg_iter.value.shortname }}-builder"
+      _bcon_name: "{{ _cur_dockimg.shortname }}-builder"
 
   - name: initialize build container for  ==>>  {{ _dbimg_iter.value.fullname }}
     docker_container:
       name: "{{ _bcon_name }}"
-      image: "{{ _dbimg_iter.value.parent }}"
+      image: "{{ _cur_dockimg.parent }}"
       state: started
 
       ##
@@ -86,25 +90,47 @@
 
       - name: standard distro package installs  ==>>  {{ _dbimg_iter.value.fullname }}
         package: 
-          name: "{{ _dbimg_iter.value.packages.distro.packages | dict2items() | map(attribute='key') | list }}"
+          name: "{{ _cur_dockimg.packages.distro.packages | dict2items() | map(attribute='key') | list }}"
           state: present
 
       - name: pip3 package installs  ==>>  {{ _dbimg_iter.value.fullname }}
         pip: 
-          name: "{{ _dbimg_iter.value.packages.pip3.packages | dict2items() | map(attribute='key') | list }}"
+          name: "{{ _cur_dockimg.packages.pip3.packages | dict2items() | map(attribute='key') | list }}"
           state: present
 
 ## do steps postpackage
 ## do dynamic env
 
-        ## TODO: add computed value back to config map
-      - name: compute envvar from shell script  ==>>  {{ _shell_env_iter.key }}
-        shell: "{{ _shell_env_iter.value }}"
-        register: _computed_env
-        loop: "{{ _dbimg_iter.value.environment.dynamic.shell | dict2items() }}"
-        loop_control:
-          loop_var: _shell_env_iter
+      - shell: 'echo foo'
 
+      - shell:
+          cmd: 'echo foo2'
+
+      - command:
+           argv:
+             - /bin/sh
+             - '-c'
+             - echo foo3
+
+
+      ##
+      ## note: as always atm direct uppdating per ansfact return is broken, 
+      ##   so we use here also a workaround role for now
+      ##
+
+      ## - name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
+      ##   smabot.containers.compute_container_env:
+      ##     config_ansvar: '_cur_dockimg'
+
+      - include_role:
+          name: smabot.containers.compute_container_env
+        vars:
+          compute_contenv_args:
+            task_name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
+            config_ansvar: _cur_dockimg
+
+      - debug:
+          var: _cur_dockimg
 
     ##
     ## switch ansible context into the docker builder container by using the delegate mechanism (as using "hosts:" only works for top level playbooks)
@@ -115,7 +141,7 @@
     ## here we will set the proxy for the build time
     ##
     environment: >-
-      {{ (_dbimg_iter.value.proxy | default({}, True)).vars | default({}, True) }}
+      {{ (_cur_dockimg.proxy | default({}, True)).vars | default({}, True) }}
 
 
 ##

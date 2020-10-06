@@ -1,0 +1,14 @@
+---
+
+###
+### TODO: this whole role is workaround for a strange bug with updating facts from collection modules, remove it when it is not needed anymore, see corresponding role for merge vars for details
+###
+
+  - name: "{{ compute_contenv_args.task_name }}"
+    smabot.containers.compute_container_env:
+      config_ansvar: "{{ compute_contenv_args.config_ansvar }}"
+    register: _tmp_modres_
+
+  - set_fact:
+      "{{ compute_contenv_args.config_ansvar }}": "{{ _tmp_modres_.normalized }}"
+

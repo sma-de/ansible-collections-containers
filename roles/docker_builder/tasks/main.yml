@@ -66,12 +66,13 @@
   - include_role:
       name: smabot.containers.normalize_docker
 
+
   - debug:
       var: docker_build
 
 
-## - include_tasks: handle_owners.yml
-##   loop: "{{ docker_build.images | dict2items() }}"
-##   loop_control:
-##     loop_var: _dbimg_owner_iter
+  - include_tasks: handle_owners.yml
+    loop: "{{ docker_build.images | dict2items() }}"
+    loop_control:
+      loop_var: _dbimg_owner_iter
 
