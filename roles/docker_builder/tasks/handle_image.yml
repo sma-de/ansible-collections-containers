@@ -101,18 +101,6 @@
 ## do steps postpackage
 ## do dynamic env
 
-      - shell: 'echo foo'
-
-      - shell:
-          cmd: 'echo foo2'
-
-      - command:
-           argv:
-             - /bin/sh
-             - '-c'
-             - echo foo3
-
-
       ##
       ## note: as always atm direct uppdating per ansfact return is broken, 
       ##   so we use here also a workaround role for now
@@ -148,29 +136,27 @@
 ## finally for committing and pushing we switch back to docker host
 ##
 
-
-    ## prepare docker changes (ENV, EXPOSE, USER, CMD, ...)
-  - set_fact:
-
-      ## start of with port exposing, these are easy as we only need 
-      ## to copy them
-      _dchanges: >-
-        {{ _dbimg_iter.value.expose | default([], True) 
-         | map('regex_replace', '^(.*)$', "-c 'EXPOSE \\1'") | list
-        }}
-
-##  - set_fact:
-##      _dchanges: >-
-##        {{ _dchanges + (_dbimg_iter.value.get('environment', {}).static | default({}, True) 
-##         | map('regex_replace', '^(.*)$', "-c 'EXPOSE \\1'") | list
-##        }}
-##
-##
-##--change='CMD ["apachectl", "-DFOREGROUND"]' -c "EXPOSE 80"
-
-    ## TODO: create module / action plugin for this
   - name: save build container to image  ==>>  {{ _dbimg_iter.value.fullname }}
-    command: docker commit {{ _dchanges | join(' ') }} "{{ _bcon_name }}" "{{ _dbimg_iter.value.fullname }}"
+    smabot.containers.docker_commit:
+      container: "{{ _bcon_name }}" ## id or tag, mandatory
+      image_name: "{{ _cur_dockimg.fullname }}" ## image name, mandatory
+      ##image_tag: ## optional, defaults to docker default (latest)
+
+      ## if image already exists, it will not be overwritten unless 
+      ## force is set, existing here means simply something with given 
+      ## image name + tag exist alreadyon docker node or is pullable
+      force: True
+
+      ## TODO: complete keywords
+      docker_keywords:
+        ## 1:1 analogous to dockerfile statements with the same name, all optional
+        CMD: "{{ _cur_dockimg.docker_cmd | default(omit) }}"
+        ENTRYPOINT: "{{ _cur_dockimg.entrypoint | default(omit, True) }}"
+        ENV: "{{ _cur_dockimg.environment.static | default(omit, True) }}"
+        EXPOSE: "{{ _cur_dockimg.expose | default(omit, True) }}"
+        LABEL: "{{ _cur_dockimg.docker_labels | default(omit, True) }}"
+        USER: "{{ _cur_dockimg.docker_user | default(omit, True) }}"
+        WORKDIR: "{{ _cur_dockimg.workdir | default(omit, True) }}"
 
 
 ##   - include_role: 
