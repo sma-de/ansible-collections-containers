@@ -3,6 +3,8 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 
+import collections
+
 from ansible.errors import AnsibleOptionsError, AnsibleModuleError##, AnsibleError
 ####from ansible.module_utils._text import to_native
 from ansible.module_utils.six import iteritems##, string_types
@@ -16,12 +18,10 @@ from ansible_collections.smabot.base.plugins.module_utils.utils.utils import ans
 from ansible_collections.smabot.containers.plugins.module_utils.common import DOCKER_CFG_DEFAULTVAR
 
 
-
 class DockInstEnvHandler(NormalizerBase):
 
-    def __init__(self, plugin, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(DockInstEnvHandler, self).__init__(*args, **kwargs)
-        self._pluginref = plugin
 
 
     @property
@@ -30,19 +30,22 @@ class DockInstEnvHandler(NormalizerBase):
 
 
     def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        def add_new_envkey(k, v, resmap, keylist):
+            if k in keylist:
+                raise AnsibleOptionsError(
+                  "duplicate environment key '{}'".format(k)
+                )
+
+            resmap[k] = v
+            keylist.append(k)
+
         def handle_shellers(shellmap, env_keys, resmap):
             for (k, v) in iteritems(shellmap):
-                if k in env_keys:
-                    raise AnsibleOptionsError(
-                      "duplicate environment key '{}'".format(k)
-                    )
-
-                modret = self._pluginref.exec_module('shell', 
+                modret = self.pluginref.exec_module('shell', 
                   modargs={'cmd': v}
                 )
 
-                env_keys.append(k)
-                resmap[k] = modret['stdout']
+                add_new_envkey(k, modret['stdout'], resmap, env_keys)
 
         constenv = get_subdict(my_subcfg, ['static'], default_empty=True)
         env_keys = list(constenv.keys())
@@ -58,13 +61,10 @@ class DockInstEnvHandler(NormalizerBase):
             )
 
             for (k, v) in iteritems(proxy):
-                if k in env_keys:
-                    raise AnsibleOptionsError(
-                      "duplicate environment key '{}'".format(k)
-                    )
+                add_new_envkey(k, v, constenv, env_keys)
 
-                constenv[k] = v
-                env_keys.append(k)
+        for (k, v) in iteritems(self.pluginref.get_taskparam('extra_env')):
+            add_new_envkey(k, v, constenv, env_keys)
 
         dynenv = my_subcfg.get('dynamic', None)
 
@@ -106,4 +106,14 @@ class ActionModule(ConfigNormalizerBase):
     @property
     def supports_merging(self):
         return False
+
+    @property
+    def argspec(self):
+        tmp = super(ActionModule, self).argspec
+
+        tmp.update({
+          'extra_env': ([collections.abc.Mapping], {}),
+        })
+
+        return tmp
 

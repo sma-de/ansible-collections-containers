@@ -39,7 +39,8 @@
       ##   do this atm
       ##
       command: -c tail -f /dev/null
-  
+
+
   - name: make build container avaible as ansible host  ==>>  {{ _dbimg_iter.value.fullname }}
     add_host:
       name: "{{ _bcon_name }}"
@@ -71,32 +72,84 @@
         ##   python is needed for it, luckily it can be called 
         ##   later explicitly like a normal module
         ##
+        ## update: how delegations effects (ansible) facts is not 
+        ##   that easy to understand, here some observations made by 
+        ##   testing:
+        ##
+        ##                             with delegate_facts   ||   without delegate_facts
+        ##
+        ##     ansible_facts              docker host                  docker host
+        ##     ansible_os_family          docker host                  container
+        ##     inventory_hostname         docker host                  docker host
+        ##     ansible_env                docker host??                container
+        ##     ansible_host               container                    container
+        ##     package module             container                    container
+        ##
+        ##
+        ##   further observations:  
+        ##
+        ##     -> when delegate_facts is set at block level, package 
+        ##        module starts to thing being @docker host for some 
+        ##        reason than
+        ##
+        ##
+        ##   implication:
+        ##
+        ##     dont use delegate_facts but simply rerun setup after 
+        ##     container section was handled to reset facts to docker 
+        ##     host properly, in this scenario things like 
+        ##     ansible_os_family and the package module behave correctly 
+        ##     inside the container, but we still might get 
+        ##     errors / strange bugs because ansible_facts itself is 
+        ##     never set to container mode
+        ##
       - name: gather facts for  ==>>  {{ _dbimg_iter.value.fullname }}
-        setup:
+        block:
 
-        ##
-        ## note: this here is important, otherwise facts would not be 
-        ##   set for the delegate (our container / image to build), but 
-        ##   the default host (localhost, the docker build slave)
-        ##
-        delegate_facts: True
+            ##
+            ## update: actually, doing setup with delegate_facts has 
+            ##   one advantadge, it makes ansible_facts (container-context) 
+            ##   principally avaible per hostvars[ansible_host] (as said 
+            ##   before, ansible_facts var seems to say always at docker 
+            ##   host context), if we do a 2nd setup without delegating 
+            ##   facts afterwards, there is also no harm doing this first
+            ##
+          - setup:
+            delegate_facts: True
+
+          - setup:
+
+          ##   ## TODO: is it possible to update ansible_facts explicitly with set_fact, is this necessary??
+          ## - set_fact:
+          ##     ansible_facts: "{{ hostvars[ansible_host].ansible_facts }}"
 
 ## handle docker copy
 ## do steps prepackage
 
 # TODO: handle user
-# TODO: handle proxy
-# TODO: handle certs
 
       - name: standard distro package installs  ==>>  {{ _dbimg_iter.value.fullname }}
         package: 
           name: "{{ _cur_dockimg.packages.distro.packages | dict2items() | map(attribute='key') | list }}"
           state: present
 
-      - name: pip3 package installs  ==>>  {{ _dbimg_iter.value.fullname }}
-        pip: 
-          name: "{{ _cur_dockimg.packages.pip3.packages | dict2items() | map(attribute='key') | list }}"
-          state: present
+
+## handle certificates
+
+      - include_role:
+          name: smabot.base.handle_system_certs
+        vars:
+          handle_system_certs_args: >-
+            {{ _cur_dockimg.ssl_certs | default({}, True) }}
+        when: _cur_dockimg.get('ssl-certs', {}).get('disable', False) is falsy
+
+
+      - block:
+
+          - name: pip3 package installs  ==>>  {{ _dbimg_iter.value.fullname }}
+            pip: 
+              name: "{{ _cur_dockimg.packages.pip3.packages | dict2items() | map(attribute='key') | list }}"
+              state: present
 
 ## do steps postpackage
 ## do dynamic env
@@ -106,19 +159,25 @@
       ##   so we use here also a workaround role for now
       ##
 
-      ## - name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
-      ##   smabot.containers.compute_container_env:
-      ##     config_ansvar: '_cur_dockimg'
+          ## - name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
+          ##   smabot.containers.compute_container_env:
+          ##     config_ansvar: '_cur_dockimg'
 
-      - include_role:
-          name: smabot.containers.compute_container_env
-        vars:
-          compute_contenv_args:
-            task_name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
-            config_ansvar: _cur_dockimg
+          - include_role:
+              name: smabot.containers.compute_container_env
+            vars:
+              compute_contenv_args:
+                task_name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
+                config_ansvar: _cur_dockimg
+                extra_env: "{{ handle_system_certs_result.envvars }}"
 
-      - debug:
-          var: _cur_dockimg
+          - debug:
+              var: _cur_dockimg
+
+        ## note: some ssl systems needs specific env vars set, 
+        ##   and it is totally possible we want to use them 
+        ##   for the rest of docker building
+        environment: "{{ handle_system_certs_result.envvars }}"
 
     ##
     ## switch ansible context into the docker builder container by using the delegate mechanism (as using "hosts:" only works for top level playbooks)
@@ -135,6 +194,9 @@
 ##
 ## finally for committing and pushing we switch back to docker host
 ##
+  - name: reset facts to docker host machine
+    setup:
+
 
   - name: save build container to image  ==>>  {{ _dbimg_iter.value.fullname }}
     smabot.containers.docker_commit:

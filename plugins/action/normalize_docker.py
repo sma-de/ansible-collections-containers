@@ -12,24 +12,24 @@ from ansible_collections.smabot.containers.plugins.module_utils.common import DO
 
 class DockerConfigNormalizer(NormalizerBase):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, pluginref, *args, **kwargs):
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
-          DockConfNormImageTree(),
+          DockConfNormImageTree(pluginref),
         ]
 
-        super(DockerConfigNormalizer, self).__init__(*args, **kwargs)
+        super(DockerConfigNormalizer, self).__init__(pluginref, *args, **kwargs)
 
 
 class DockConfNormImageTree(NormalizerBase):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, pluginref, *args, **kwargs):
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
-          DockConfNormImageOwner(),
+          DockConfNormImageOwner(pluginref),
         ]
 
-        super(DockConfNormImageTree, self).__init__(*args, **kwargs)
+        super(DockConfNormImageTree, self).__init__(pluginref, *args, **kwargs)
 
     @property
     def config_path(self):
@@ -38,13 +38,13 @@ class DockConfNormImageTree(NormalizerBase):
 
 class DockConfNormImageOwner(NormalizerBase):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, pluginref, *args, **kwargs):
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
-          DockConfNormImageInstance(),
+          DockConfNormImageInstance(pluginref),
         ]
 
-        super(DockConfNormImageOwner, self).__init__(*args, **kwargs)
+        super(DockConfNormImageOwner, self).__init__(pluginref, *args, **kwargs)
 
     @property
     def config_path(self):
@@ -53,13 +53,13 @@ class DockConfNormImageOwner(NormalizerBase):
 
 class DockConfNormImageInstance(NormalizerNamed):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, pluginref, *args, **kwargs):
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
-          ConfigNormerProxy(),
+          ConfigNormerProxy(pluginref),
         ]
 
-        super(DockConfNormImageInstance, self).__init__(*args, **kwargs)
+        super(DockConfNormImageInstance, self).__init__(pluginref, *args, **kwargs)
 
     @property
     def config_path(self):
@@ -81,7 +81,7 @@ class ActionModule(ConfigNormalizerBase):
 
     def __init__(self, *args, **kwargs):
         super(ActionModule, self).__init__(
-            DockerConfigNormalizer(), *args, **kwargs
+            DockerConfigNormalizer(self), *args, **kwargs
         )
 
         self._supports_check_mode = False
