@@ -1,0 +1,44 @@
+---
+
+  - smabot.containers.normalize_image_copycfg:
+    register: _tmp_copycfg
+
+
+  - set_fact:
+      ## ok, this is new, here not even the mighty magic legacy set_fact can update / overwrite handle_system_certs_args var, maybe because this is originally set as by "vars:" for a role include (??)
+      ##copy_to_image_args: "{{ _tmp_sslcert_cfg.normalized }}"
+      copy_to_image_args_normed: "{{ _tmp_copycfg.normalized }}"
+
+      _tmpimg_id: >-
+        {{ _tmp_copycfg.normalized.image_owner }}/{{ _tmp_copycfg.normalized.image_name }}
+
+
+  - include_tasks: handle_files.yml
+    loop: >-
+      {{ copy_to_image_args_normed.copy_cfg.files | dict2items() }}
+
+    loop_control:
+      loop_var: _cpimg_files_iter
+
+
+  - include_role: 
+      name: smabot.base.template_recursive
+    vars:
+      template_recursive_args: 
+        paths: "{{ copy_to_image_args_normed.copy_cfg.templates }}"
+        source_root: "{{ copy_to_image_args_normed.source_root }}"
+        source_root_suffix: "{{ copy_to_image_args_normed.source_root_suffix }}"
+
+        ## filter_criteria:
+        ##   ## filter src path by regex
+        ##   match:
+
+        ##     ## if true, list is exclusive, if false, list is inclusive
+        ##     ##exclude: true ## defaults to false
+
+        ##     list:
+        ##   
+        ##       - \.j2$
+
+    when: copy_to_image_args_normed.copy_cfg.templates is truthy
+

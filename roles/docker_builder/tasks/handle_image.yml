@@ -124,6 +124,16 @@
           ##     ansible_facts: "{{ hostvars[ansible_host].ansible_facts }}"
 
 ## handle docker copy
+
+      - include_role:
+          name: smabot.containers.copy_to_image
+        vars:
+          copy_to_image_args:
+            copy_cfg: "{{ _cur_dockimg.docker_copy | default({}, True) }}"
+            source_root: "{{ _cur_dockimg.role_dir }}"
+            image_name: "{{ _cur_dockimg.shortname }}"
+            image_owner: "{{ _cur_dockimg.owner }}"
+
 ## do steps prepackage
 
 # TODO: handle user

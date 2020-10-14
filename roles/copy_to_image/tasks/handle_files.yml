@@ -1,0 +1,15 @@
+---
+
+  - name: check that source '{{ _cpimg_files_iter.value.src_rel }}' exists  ==>>  {{ _tmpimg_id }}
+    ansible.builtin.stat:
+      path: "{{ _cpimg_files_iter.value.src }}"
+    become: no
+    delegate_to: localhost
+    register: _result
+    failed_when: 
+      - not _result.stat.exists
+
+
+  - name: copy file / dir '{{ _cpimg_files_iter.value.src_rel }}' to image  ==>>  {{ _tmpimg_id }}
+    ansible.builtin.copy: "{{ _cpimg_files_iter.value.copy_api }}"
+
