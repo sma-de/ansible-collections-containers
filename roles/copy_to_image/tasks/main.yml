@@ -40,5 +40,5 @@
         ##   
         ##       - \.j2$
 
-    when: copy_to_image_args_normed.copy_cfg.templates is truthy
+    when: copy_to_image_args_normed.copy_cfg.get('templates', {}) is truthy
 
