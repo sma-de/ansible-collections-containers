@@ -13,6 +13,7 @@
     set_fact:
       _bcon_name: "{{ _cur_dockimg.shortname }}-builder"
 
+
   - name: initialize build container for  ==>>  {{ _dbimg_iter.value.fullname }}
     docker_container:
       name: "{{ _bcon_name }}"
@@ -39,6 +40,15 @@
       ##   do this atm
       ##
       command: -c tail -f /dev/null
+
+
+  - name: collect infos for parent  ==>>  {{ _dbimg_iter.value.fullname }}
+    community.general.docker_image_info:
+    ##name: "{{ _cur_dockimg.parent }}"
+      name: 
+        - "{{ _cur_dockimg.parent }}"
+        - debian
+    register: _dparent_meta
 
 
   - name: make build container avaible as ansible host  ==>>  {{ _dbimg_iter.value.fullname }}
@@ -134,18 +144,22 @@
             image_name: "{{ _cur_dockimg.shortname }}"
             image_owner: "{{ _cur_dockimg.owner }}"
 
-## do steps prepackage
+## do steps prepackage (TODO)
 
-# TODO: handle user
-
+## do standard package install
       - name: standard distro package installs  ==>>  {{ _dbimg_iter.value.fullname }}
         package: 
           name: "{{ _cur_dockimg.packages.distro.packages | dict2items() | map(attribute='key') | list }}"
           state: present
 
+# handle user accounts
+      - name: handle user '{{ _iter_img_users.key }}'  ==>>  {{ _dbimg_iter.value.fullname }}
+        ansible.builtin.user: "{{ _iter_img_users.value.config }}"
+        loop: "{{ _cur_dockimg.users.users | default({}, True) | dict2items() }}"
+        loop_control:
+          loop_var: _iter_img_users
 
 ## handle certificates
-
       - include_role:
           name: smabot.base.handle_system_certs
         vars:
