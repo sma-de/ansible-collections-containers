@@ -70,12 +70,27 @@
     ## if for a specific image the builder really, really dont want python in it we will provide a custom flag to set to force removing python again when building is through
     ##
 
+        ##
+        ## optionally prepare environment for bootstrapping process, 
+        ## this might be necessary for proxies and such
+        ##
+      - set_fact:
+          _tmp_bootstrap_env: {}
+
+      - set_fact:
+          _tmp_bootstrap_env: >- 
+            {{ _tmp_bootstrap_env | combine(_dbimg_iter.value.proxy.vars) }}
+        when: _dbimg_iter.value.get('proxy', {}) is truthy
+
+      - debug:
+          msg: "da bs env |{{ _tmp_bootstrap_env | smabot.base.kvlist | join(' ') }}|"
+
 
       ## TODO: this step must become distro agnostic obviously
       # ansible will need python, and since it isn't there we can only use the special raw mode
       # note: environment does not work for raw (also not when executable is set explicitly as the docu says), so we musst pass important settings here differently
       - name: install python
-        raw: "http_proxy={{_dbimg_iter.value.proxy.proxy.http}} https_proxy={{_dbimg_iter.value.proxy.proxy.https}} no_proxy={{_dbimg_iter.value.proxy.vars.no_proxy}} apk add --no-cache python3"
+        raw: "{{ _tmp_bootstrap_env | smabot.base.kvlist | join(' ') }} apk add --no-cache python3"
 
         ##
         ## note: standard facts gathering does not work because 
