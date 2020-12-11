@@ -134,7 +134,6 @@
           ##     ansible_facts: "{{ hostvars[ansible_host].ansible_facts }}"
 
 ## handle docker copy
-
       - include_role:
           name: smabot.containers.copy_to_image
         vars:
@@ -144,7 +143,10 @@
             image_name: "{{ _cur_dockimg.shortname }}"
             image_owner: "{{ _cur_dockimg.owner }}"
 
-## do steps prepackage (TODO)
+## do steps prepackage
+      - name: handle custom pre package install steps
+        include_tasks: "{{ _cur_dockimg.steps.pre_packages }}"
+        when: _cur_dockimg.get('steps', {}).get('pre_packages', None) is truthy
 
 ## do standard package install
       - name: standard distro package installs  ==>>  {{ _dbimg_iter.value.fullname }}
@@ -176,6 +178,10 @@
               state: present
 
 ## do steps postpackage
+          - name: handle custom post package install steps
+            include_tasks: "{{ _cur_dockimg.steps.post_packages }}"
+            when: _cur_dockimg.get('steps', {}).get('post_packages', None) is truthy
+
 ## do dynamic env
 
       ##
