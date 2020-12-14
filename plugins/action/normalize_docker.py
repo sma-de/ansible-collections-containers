@@ -185,7 +185,7 @@ class ActionModule(ConfigNormalizerBaseMerger):
 
     def __init__(self, *args, **kwargs):
         super(ActionModule, self).__init__(DockerConfigNormalizer(self), 
-            *args, default_merge_vars=['docker_build_defaults'], 
+            *args, default_merge_vars=['docker_build_defaults_role', 'docker_build_defaults'], 
             extra_merge_vars_ans=['extra_docker_config_maps'], **kwargs
         )
 
