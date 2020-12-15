@@ -14,6 +14,12 @@
       _bcon_name: "{{ _cur_dockimg.shortname }}-builder"
 
 
+  - name: remove potential old build container for  ==>>  {{ _dbimg_iter.value.fullname }}
+    docker_container:
+      name: "{{ _bcon_name }}"
+      state: absent
+
+
   - name: initialize build container for  ==>>  {{ _dbimg_iter.value.fullname }}
     docker_container:
       name: "{{ _bcon_name }}"
@@ -81,9 +87,6 @@
           _tmp_bootstrap_env: >- 
             {{ _tmp_bootstrap_env | combine(_dbimg_iter.value.proxy.vars) }}
         when: _dbimg_iter.value.get('proxy', {}) is truthy
-
-      - debug:
-          msg: "da bs env |{{ _tmp_bootstrap_env | smabot.base.kvlist | join(' ') }}|"
 
 
       ## TODO: this step must become distro agnostic obviously
@@ -264,6 +267,12 @@
         LABEL: "{{ _cur_dockimg.docker_labels | default(omit, True) }}"
         USER: "{{ _cur_dockimg.docker_user | default(omit, True) }}"
         WORKDIR: "{{ _cur_dockimg.workdir | default(omit, True) }}"
+
+
+  - name: remove build container for  ==>>  {{ _dbimg_iter.value.fullname }}
+    docker_container:
+      name: "{{ _bcon_name }}"
+      state: absent
 
 
 ##   - include_role: 
