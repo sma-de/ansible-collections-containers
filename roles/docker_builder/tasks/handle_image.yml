@@ -18,6 +18,7 @@
     docker_container:
       name: "{{ _bcon_name }}"
       state: absent
+    when: not (docker_build_keep_buildcon | default(False))
 
 
   - name: initialize build container for  ==>>  {{ _dbimg_iter.value.fullname }}
@@ -273,6 +274,7 @@
     docker_container:
       name: "{{ _bcon_name }}"
       state: absent
+    when: not (docker_build_keep_buildcon | default(False))
 
 
 ##   - include_role: 
