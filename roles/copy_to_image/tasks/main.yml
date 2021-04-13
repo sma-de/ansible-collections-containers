@@ -26,8 +26,7 @@
     vars:
       template_recursive_args: 
         paths: "{{ copy_to_image_args_normed.copy_cfg.templates }}"
-        source_root: "{{ copy_to_image_args_normed.source_root }}"
-        source_root_suffix: "{{ copy_to_image_args_normed.source_root_suffix }}"
+        source_root: "{{ copy_to_image_args_normed._source_root_templates }}"
 
         ## filter_criteria:
         ##   ## filter src path by regex

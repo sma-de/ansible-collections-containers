@@ -4,7 +4,7 @@ __metaclass__ = type
 
 
 import abc
-import os
+import pathlib
 
 from ansible.errors import AnsibleOptionsError
 from ansible.module_utils.six import iteritems, string_types
@@ -30,10 +30,16 @@ class ConfigRootNormalizer(NormalizerBase):
 
 
     def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
-        my_subcfg['source_root_suffix'] = os.path.join(
+        src_root = my_subcfg.get('source_root')
+
+        tmp = pathlib.PurePosixPath(source_root) / '{}' / 'to_images' 
            'to_images', cfg['image_owner'], cfg['image_name']
         )
 
+        tmp = str(tmp)
+
+        my_subcfg['source_root'] = tmp.format('files')
+        my_subcfg['_source_root_templates'] = tmp.format('templates')
         return my_subcfg
 
 
