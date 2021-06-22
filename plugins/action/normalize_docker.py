@@ -9,13 +9,31 @@ from ansible_collections.smabot.base.plugins.module_utils.utils.dicting import g
 
 from ansible_collections.smabot.containers.plugins.module_utils.common import DOCKER_CFG_DEFAULTVAR
 
+from ansible_collections.smabot.base.plugins.module_utils.utils.utils import ansible_assert
+
+from ansible.utils.display import Display
+
+
+display = Display()
+
 
 def get_docker_parent_infos(pluginref, parent_name):
     tmp = pluginref.exec_module('community.general.docker_image_info', 
        modargs={'name': parent_name}
     )
 
-    tmp = tmp['images'][0]
+    errmsg = "Bad docker parent info query for parent"\
+             " name '{}'.".format(parent_name) + "{}."\
+           + "Raw result: " + str(tmp)
+
+    t2 = tmp.get('images', None)
+
+    ansible_assert(t2, errmsg.format("No Images returned"))
+    ansible_assert(len(t2) == 1, errmsg.format(
+      "Expected exactly one image returned, but got '{}'".format(len(t2))
+    ))
+
+    tmp = t2[0]
 
     return tmp
 
