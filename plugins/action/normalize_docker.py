@@ -18,13 +18,19 @@ display = Display()
 
 
 def get_docker_parent_infos(pluginref, parent_name):
-    tmp = pluginref.exec_module('community.general.docker_image_info', 
+    ## note: docker_image_info will never pull an image and only 
+    ##   examines local images, so we need this extra explicit pull before 
+    pluginref.exec_module('community.docker.docker_image', 
+      modargs={'name': parent_name, 'source': 'pull', 'force_source': True}
+    )
+
+    tmp = pluginref.exec_module('community.docker.docker_image_info', 
        modargs={'name': parent_name}
     )
 
     errmsg = "Bad docker parent info query for parent"\
-             " name '{}'.".format(parent_name) + "{}."\
-           + "Raw result: " + str(tmp)
+             " name '{}'.".format(parent_name) + " {}."\
+           + " Raw result: " + str(tmp).replace('{', '{{').replace('}', '}}')
 
     t2 = tmp.get('images', None)
 
