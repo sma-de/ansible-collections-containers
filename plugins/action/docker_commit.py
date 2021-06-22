@@ -64,7 +64,7 @@ class ActionModule(BaseAction):
 
         ## image exists means for us something with given name 
         ## already exists on docker build node or is pullable
-        pullmod = 'community.general.docker_image'
+        pullmod = 'community.docker.docker_image'
         mres = self.exec_module(pullmod, 
           modargs=dict(name=img_fullname, source='pull'), ignore_error=True
         )

@@ -49,15 +49,6 @@
       command: -c tail -f /dev/null
 
 
-  - name: collect infos for parent  ==>>  {{ _dbimg_iter.value.fullname }}
-    community.general.docker_image_info:
-    ##name: "{{ _cur_dockimg.parent }}"
-      name: 
-        - "{{ _cur_dockimg.parent }}"
-        - debian
-    register: _dparent_meta
-
-
   - name: make build container avaible as ansible host  ==>>  {{ _dbimg_iter.value.fullname }}
     add_host:
       name: "{{ _bcon_name }}"
