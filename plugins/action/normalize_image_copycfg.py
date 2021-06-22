@@ -30,11 +30,8 @@ class ConfigRootNormalizer(NormalizerBase):
 
 
     def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
-        src_root = my_subcfg.get('source_root')
-
-        tmp = pathlib.PurePosixPath(source_root) / '{}' / 'to_images' 
-           'to_images', cfg['image_owner'], cfg['image_name']
-        )
+        tmp = pathlib.PurePosixPath(my_subcfg.get('source_root')) \
+            / '{}' / 'to_images' / cfg['image_owner'] / cfg['image_name']
 
         tmp = str(tmp)
 
