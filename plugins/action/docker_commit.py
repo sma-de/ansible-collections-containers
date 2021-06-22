@@ -78,7 +78,7 @@ class ActionModule(BaseAction):
             ## check if it failed simply because image does not 
             ## exist yet or if something is actually really wrong
 
-            if not re.search(r'(?i)404 client error: not found', mres['msg']):
+            if not re.search(r'(?i)404 client error.*?: not found', mres['msg']):
                 self._rescheck_inner_call(mres, pullmod, 'MODULE')
 
             img_exists = False
