@@ -1,0 +1,17 @@
+---
+
+  - set_fact:
+      _tmp_export_data: "{{ _docker_build_meta | to_nice_json }}"
+    when: _dbmeta_expiter.value.format == 'json'
+
+
+  - name: handle container build local file export  ==>>  {{ _dbmeta_expiter.key }}
+    ansible.builtin.copy:
+      content: "{{ _tmp_export_data }}"
+      dest: "{{ _dbmeta_expiter.value.target }}"
+##    delegate_to: localhost
+
+
+  - set_fact:
+      _tmp_export_handled: true
+

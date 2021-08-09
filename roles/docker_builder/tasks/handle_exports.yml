@@ -1,0 +1,16 @@
+---
+
+  - set_fact:
+      _tmp_export_handled: false
+
+
+  - include_tasks: exports/localfile.yml
+    when: _dbmeta_expiter.value.type == 'localfile'
+
+
+  - ansible.builtin.assert:
+      that:
+        - _tmp_export_handled
+      fail_msg: >-
+        Unsupported export type '{{ _dbmeta_expiter.value.type }}'
+

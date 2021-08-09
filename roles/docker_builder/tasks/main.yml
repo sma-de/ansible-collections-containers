@@ -70,9 +70,25 @@
   - debug:
       var: docker_build
 
+    # optionally collect build meta informations like 
+    # the complete names of build images and similar
+  - set_fact:
+      _docker_build_meta: {}
+    when: docker_build.meta.create
+
 
   - include_tasks: handle_owners.yml
     loop: "{{ docker_build.images | dict2items() }}"
     loop_control:
       loop_var: _dbimg_owner_iter
+
+
+##  - debug:
+##      var: _docker_build_meta
+
+
+  - include_tasks: handle_exports.yml
+    loop: "{{ docker_build.meta.exports | dict2items() }}"
+    loop_control:
+      loop_var: _dbmeta_expiter
 

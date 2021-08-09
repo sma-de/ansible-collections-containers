@@ -246,7 +246,7 @@
 
       ## if image already exists, it will not be overwritten unless 
       ## force is set, existing here means simply something with given 
-      ## image name + tag exist alreadyon docker node or is pullable
+      ## image name + tag exist already on docker node or is pullable
       force: True
 
       ## TODO: complete keywords
@@ -266,6 +266,17 @@
       name: "{{ _bcon_name }}"
       state: absent
     when: not (docker_build_keep_buildcon | default(False))
+
+
+  - set_fact:
+      _docker_build_meta: >-
+        {{ _docker_build_meta 
+         | combine({'created_images': [{'name': _cur_dockimg.fullname}]}, 
+             recursive=True, list_merge='append'
+           )
+        }}
+
+    when: docker_build.meta.create
 
 
 ##   - include_role: 

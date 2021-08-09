@@ -49,10 +49,29 @@ class DockerConfigNormalizer(NormalizerBase):
     def __init__(self, pluginref, *args, **kwargs):
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
+          DockConfNormMeta(pluginref),
           DockConfNormImageTree(pluginref),
         ]
 
         super(DockerConfigNormalizer, self).__init__(pluginref, *args, **kwargs)
+
+
+class DockConfNormMeta(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs, 
+          'create', DefaultSetterConstant(False)
+        )
+
+        self._add_defaultsetter(kwargs, 
+          'exports', DefaultSetterConstant({})
+        )
+
+        super(DockConfNormMeta, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['meta']
 
 
 class DockConfNormImageTree(NormalizerBase):

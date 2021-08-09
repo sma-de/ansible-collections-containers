@@ -1,0 +1,26 @@
+---
+
+  docker_build_defaults:
+
+    defaults:
+
+      images: 
+
+        '*':  ## means any owner
+
+          '*':  ## means any image
+  
+            environment:
+  
+              static:
+  
+                ##
+                ## note: some debian tooling like dpg needs this var set sometimes
+                ##   to avoid interactive querying
+                ##
+                ## note.2: obviously this var is not needed when distro is not 
+                ##   debian based, but it does not really hurt either, so dont 
+                ##   bother to make this distro specific
+                ##
+                DEBIAN_FRONTEND: noninteractive
+
