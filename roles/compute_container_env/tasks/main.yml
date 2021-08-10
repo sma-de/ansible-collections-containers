@@ -15,6 +15,14 @@
     ##   like $HOME expands correctly
     ##
     become: yes
+
+    ##
+    ## note: also important to use the "right" become method here, 
+    ##   as sudo has only a very limited core env of the impersonated 
+    ##   user (at least on default settings), and see's not nearly 
+    ##   all the vars one would get when doing a normal login as this user
+    ##
+    become_method: su
     become_user: "{{ _cur_dockimg.docker_user | default('root', True) }}"
 
 
