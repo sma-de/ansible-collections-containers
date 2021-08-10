@@ -199,6 +199,27 @@
       ##   so we use here also a workaround role for now
       ##
 
+          - set_fact:
+              _tmp_extra_env: {}
+
+          - name: make sure to add proxy settings to container environment  ==>>  {{ _dbimg_iter.value.fullname }}
+            set_fact:
+              _tmp_extra_env: >-
+                 {{ _tmp_extra_env 
+                  | combine(handle_system_certs_result.envvars)
+                 }}
+            when: handle_system_certs_result.envvars
+
+
+          - name: set container $USER envvar to configured docker_user  ==>>  {{ _dbimg_iter.value.fullname }}
+            set_fact:
+              _tmp_extra_env: >-
+                 {{ _tmp_extra_env 
+                  | combine({'USER': _cur_dockimg.docker_user}) 
+                 }}
+            when: _cur_dockimg.docker_user
+
+
           ## - name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
           ##   smabot.containers.compute_container_env:
           ##     config_ansvar: '_cur_dockimg'
@@ -209,7 +230,7 @@
               compute_contenv_args:
                 task_name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
                 config_ansvar: _cur_dockimg
-                extra_env: "{{ handle_system_certs_result.envvars }}"
+                extra_env: "{{ _tmp_extra_env }}"
 
           - debug:
               var: _cur_dockimg
