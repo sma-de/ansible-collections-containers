@@ -10,6 +10,14 @@
       extra_env: "{{ compute_contenv_args.extra_env | default(omit, True) }}"
     register: _tmp_modres_
 
+    ##
+    ## note: set to correct docker user so user specific stuff 
+    ##   like $HOME expands correctly
+    ##
+    become: yes
+    become_user: "{{ _cur_dockimg.docker_user | default('root', True) }}"
+
+
   - set_fact:
       "{{ compute_contenv_args.config_ansvar }}": "{{ _tmp_modres_.normalized }}"
 
