@@ -1,0 +1,60 @@
+---
+
+  ##
+  ## besides other thinks this file handles creating the final complete 
+  ## auto version and checks if that tag already exists or is new and 
+  ## must be built
+  ##
+
+
+  - set_fact:
+      _tmp_idtag: "{{ _autovcfg_iter }}"
+
+
+  - name: >-
+      check if computed id tag '{{ _tmp_idtag }}' for current 
+      auto version '{{ _autovcfg_iter }}' exists 
+      already  ==>>  {{ _dbimg_iter.value.fullname }}
+
+    community.docker.docker_image:
+      name: "{{ _dbimg_iter.value.fullname ~ ':' ~ _tmp_idtag }}"
+      source: pull
+    register: _tmp_pullres
+    ignore_errors: yes
+
+
+    ##
+    ## note: _tmp_pullres.failed is expected to mean: idtag does
+    ##   not exist yet, so obviously we want to add this auto 
+    ##   version than to build queue and not otherwise, except 
+    ##   user forced a rebuild
+    ##
+  - set_fact:
+      _auto_versions: >-
+         {{ _auto_versions + [{'idtag': _tmp_idtag}] }}
+    when: _tmp_pullres.failed or _docker_force_rebuild
+
+
+  - debug:
+      msg: Force rebuild of already existing auto version '{{ _tmp_idtag }}'
+    when: not _tmp_pullres.failed and _docker_force_rebuild
+
+
+  - block:
+
+      - debug:
+          msg: Skip already built auto version '{{ _tmp_idtag }}'
+
+      - set_fact:
+          _cur_image_meta: >-
+            {{ _cur_image_meta 
+             | combine({'skips': [{
+                   'tag': _tmp_idtag,
+                 }]}, recursive=True, list_merge='append'
+               )
+            }}
+
+        when: docker_build.meta.create
+
+    when: not _tmp_pullres.failed and not _docker_force_rebuild
+

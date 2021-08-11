@@ -1,0 +1,50 @@
+---
+
+  ##
+  ## note: there seems to be no direct equivalent for an one-off 
+  ##   "docker run" in ansible, it seems we must split this into 
+  ##   multiple subcalls (open container (and keep it open), 
+  ##   docker exec, remove container)
+  ##
+
+  - debug:
+      msg: >-
+        obtain auto version from parent image
+        '{{ _dbimg_iter.value.parent }}' 
+        ==>>  {{ _dbimg_iter.value.fullname }}
+
+
+  - community.docker.docker_container:
+      image: "{{ _dbimg_iter.value.parent }}"
+      name: tmp_get_autover_parent_image
+      state: started
+
+      pull: true
+
+##      ## this runs as one-of adhoc command, so remove all 
+##      ## traces of it when the process finishes
+##      auto_remove: true
+##      keep_volumes: false
+
+      tty: true
+      entrypoint: '/bin/sh'
+      command: -c tail -f /dev/null
+
+
+  - community.docker.docker_container_exec:
+      container: tmp_get_autover_parent_image
+      argv: "{{ _dbimg_iter.value.auto_versioning.method_args.cmd }}"
+      strip_empty_ends: true
+    register: _tmp_autover_res
+
+
+  - community.docker.docker_container:
+      name: tmp_get_autover_parent_image
+      state: absent
+      keep_volumes: false
+
+
+  - set_fact:
+      _tmp_in_versions: >- 
+         {{ _tmp_in_versions + [_tmp_autover_res.stdout] }}
+

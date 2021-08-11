@@ -1,0 +1,14 @@
+---
+
+  - name: tag new image as '{{ _btag_iter }}'  ==>>  {{ _dbimg_iter.value.fullname }}
+    community.docker.docker_image:
+      name: "{{ _build_img_tmpname }}:latest"
+      repository: "{{ _cur_dockimg.fullname }}:{{ _btag_iter }}"
+      force_tag: yes
+      source: local
+
+
+  - set_fact:
+     _dbuild_meta: >-
+        {{ _dbuild_meta + [{'tag': _btag_iter}] }}
+

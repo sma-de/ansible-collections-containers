@@ -5,7 +5,7 @@
     ##   over there images
     ##
 
-  - include_tasks: handle_image.yml
+  - include_tasks: handle_images.yml
 
     loop: >-
       {{ _dbimg_owner_iter.value | dict2items() }}

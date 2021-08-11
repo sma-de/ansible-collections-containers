@@ -13,19 +13,25 @@
     set_fact:
       _bcon_name: "{{ _cur_dockimg.shortname }}-builder"
 
+  - set_fact:
+      _build_img_tmpname: "{{ _bcon_name }}-tmpimg"
+
 
   - name: remove potential old build container for  ==>>  {{ _dbimg_iter.value.fullname }}
-    docker_container:
+    community.docker.docker_container:
       name: "{{ _bcon_name }}"
       state: absent
     when: not (docker_build_keep_buildcon | default(False))
 
 
   - name: initialize build container for  ==>>  {{ _dbimg_iter.value.fullname }}
-    docker_container:
+    community.docker.docker_container:
       name: "{{ _bcon_name }}"
       image: "{{ _cur_dockimg.parent }}"
       state: started
+
+      ## always make sure we have the latest version of parent image
+      pull: true
 
       ##
       ## note: this seems to be needed to avoid that the container 
@@ -262,7 +268,7 @@
   - name: save build container to image  ==>>  {{ _dbimg_iter.value.fullname }}
     smabot.containers.docker_commit:
       container: "{{ _bcon_name }}" ## id or tag, mandatory
-      image_name: "{{ _cur_dockimg.fullname }}" ## image name, mandatory
+      image_name: "{{ _build_img_tmpname }}" ## image name, mandatory
       ##image_tag: ## optional, defaults to docker default (latest)
 
       ## if image already exists, it will not be overwritten unless 
@@ -290,9 +296,32 @@
 
 
   - set_fact:
-      _docker_build_meta: >-
-        {{ _docker_build_meta 
-         | combine({'created_images': [{'name': _cur_dockimg.fullname}]}, 
+      _build_tags: "{{ _cur_dockimg.tags }}"
+
+  - set_fact:
+      _build_tags: "{{ [_autovcfg_iter.idtag] + _build_tags }}"
+    when: _autovcfg_iter.idtag
+
+  - name: no explicit tags for this build found, so build default tag latest  ==>>  {{ _dbimg_iter.value.fullname }}
+    set_fact:
+      _build_tags: ['latest']
+    when: not _build_tags
+
+
+  - set_fact:
+      _dbuild_meta: []
+
+
+  - include_tasks: postbuild_tasks.yml
+    loop: "{{ _build_tags }}"
+    loop_control:
+      loop_var: _btag_iter
+
+
+  - set_fact:
+      _cur_image_meta: >-
+        {{ _cur_image_meta 
+         | combine({'builds': _dbuild_meta},
              recursive=True, list_merge='append'
            )
         }}

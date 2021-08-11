@@ -107,6 +107,10 @@ class DockConfNormImageOwner(NormalizerBase):
 class DockConfNormImageInstance(NormalizerNamed):
 
     def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs, 
+          'tags', DefaultSetterConstant([])
+        )
+
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
           ConfigNormerProxy(pluginref),

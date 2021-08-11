@@ -1,0 +1,54 @@
+---
+
+  - set_fact:
+       _auto_versions: [{}]
+       _cur_image_meta: {}
+
+
+    ##
+    ## optionally handle auto versioning
+    ##
+  - block:
+
+      - set_fact:
+           _auto_versions: []
+           _tmp_in_versions: []
+
+
+      - include_tasks: autover_methods/parent_image_command.yml
+        when: _dbimg_iter.value.auto_versioning.method_type == 'parent-image-command'
+
+
+      - ansible.builtin.assert:
+          that:
+            - _tmp_in_versions
+          fail_msg: >-
+            Auto-Versioning method of type
+            {{ _dbimg_iter.value.auto_versioning.method_type }}
+            failed to determine a single in-version.
+
+
+      - include_tasks: autover_methods/common_post.yml
+        loop: "{{ _tmp_in_versions }}"
+        loop_control:
+          loop_var: _autovcfg_iter
+
+    when: _dbimg_iter.value.auto_versioning
+
+
+  - include_tasks: handle_image.yml
+    loop: "{{ _auto_versions }}"
+    loop_control:
+      loop_var: _autovcfg_iter
+
+
+  - set_fact:
+      _docker_build_meta: >-
+        {{ _docker_build_meta | combine(
+            {'images': {_dbimg_iter.value.fullname: _cur_image_meta}},
+            recursive=True, list_merge='append'
+          )
+        }}
+
+    when: docker_build.meta.create
+
