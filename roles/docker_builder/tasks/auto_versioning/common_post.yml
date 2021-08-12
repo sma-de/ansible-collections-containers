@@ -9,6 +9,16 @@
 
   - set_fact:
       _tmp_idtag: "{{ _autovcfg_iter }}"
+      _tmp_cur_autover:
+         version_in: "{{ _autovcfg_iter }}"
+
+
+  - name: optionally append scm timestamp to idtag when avaible
+    set_fact:
+      _tmp_idtag: "{{ _tmp_idtag }}_{{ _tmp_scm_timestamp }}"
+      _tmp_cur_autover: >-
+         {{ _tmp_cur_autover | combine({'scm_ts': _tmp_scm_timestamp}) }}
+    when: _tmp_scm_timestamp
 
 
   - name: >-
@@ -31,7 +41,10 @@
     ##
   - set_fact:
       _auto_versions: >-
-         {{ _auto_versions + [{'idtag': _tmp_idtag}] }}
+         {{ _auto_versions 
+          + [(_tmp_cur_autover | combine({'idtag': _tmp_idtag}))]
+         }}
+
     when: _tmp_pullres.failed or _docker_force_rebuild
 
 

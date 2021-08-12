@@ -3,7 +3,13 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 
-from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.base import ConfigNormalizerBaseMerger, NormalizerBase, NormalizerNamed, DefaultSetterConstant
+from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.base import \
+  ConfigNormalizerBaseMerger, \
+  NormalizerBase, \
+  NormalizerNamed, \
+  DefaultSetterConstant, \
+  SIMPLEKEY_IGNORE_VAL
+
 from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.proxy import ConfigNormerProxy
 from ansible_collections.smabot.base.plugins.module_utils.utils.dicting import get_subdict, SUBDICT_METAKEY_ANY, setdefault_none
 
@@ -117,6 +123,11 @@ class DockConfNormImageInstance(NormalizerNamed):
           DockConfNormImageUsersGeneric(pluginref),
         ]
 
+        subnorms_lazy = kwargs.setdefault('sub_normalizers_lazy', [])
+        subnorms_lazy += [
+          DockConfNormImageAutoVersioning
+        ]
+
         super(DockConfNormImageInstance, self).__init__(pluginref, *args, **kwargs)
 
     @property
@@ -141,6 +152,56 @@ class DockConfNormImageInstance(NormalizerNamed):
             # defined fallback user) if it exists
             du = my_subcfg['users'].get('docker_default_user', '')
             my_subcfg['docker_user'] = du
+
+        return my_subcfg
+
+
+class DockConfNormImageAutoVersioning(NormalizerBase):
+
+    NORMER_CONFIG_PATH = ['auto_versioning']
+
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms_lazy = kwargs.setdefault('sub_normalizers_lazy', [])
+        subnorms_lazy += [
+          DockConfNormImageAutoVerSCMBased,
+        ]
+
+        super(DockConfNormImageAutoVersioning, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return self.NORMER_CONFIG_PATH
+
+
+class DockConfNormImageAutoVerSCMBased(NormalizerBase):
+
+    NORMER_CONFIG_PATH = ['scm_based']
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs, 
+          'type', DefaultSetterConstant('git')
+        )
+
+        self._add_defaultsetter(kwargs, 
+          'date_format', DefaultSetterConstant('%Y%m%d_%H%m')
+        )
+
+        super(DockConfNormImageAutoVerSCMBased, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return self.NORMER_CONFIG_PATH
+
+    @property
+    def simpleform_key(self):
+        return SIMPLEKEY_IGNORE_VAL
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        # on default assume that the playbook_dir is the best bet 
+        # for the correct repo path
+        setdefault_none(my_subcfg, 'repo_path', 
+          self.pluginref.get_ansible_var('playbook_dir')
+        )
 
         return my_subcfg
 

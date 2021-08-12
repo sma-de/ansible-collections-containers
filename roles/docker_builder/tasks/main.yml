@@ -63,12 +63,12 @@
 ##            + ['docker_build_defaults'] 
 ##           }}
 
+  - debug:
+      var: docker_build
+
   - include_role:
       name: smabot.containers.normalize_docker
 
-
-  - debug:
-      var: docker_build
 
     # optionally collect build meta informations like 
     # the complete names of build images and similar

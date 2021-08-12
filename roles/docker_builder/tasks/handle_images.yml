@@ -13,9 +13,10 @@
       - set_fact:
            _auto_versions: []
            _tmp_in_versions: []
+           _tmp_scm_timestamp: ''
 
 
-      - include_tasks: autover_methods/parent_image_command.yml
+      - include_tasks: auto_versioning/methods/parent_image_command.yml
         when: _dbimg_iter.value.auto_versioning.method_type == 'parent-image-command'
 
 
@@ -28,7 +29,29 @@
             failed to determine a single in-version.
 
 
-      - include_tasks: autover_methods/common_post.yml
+      - block:
+
+           # TODO: support other scm types
+           # TODO: support passing scm stuff from "outside"
+
+          - debug:
+              msg: Get timestamp from scm for auto version
+
+          - include_tasks: auto_versioning/scm/git.yml
+            when: _dbimg_iter.value.auto_versioning.scm_based.type == 'git'
+
+          - ansible.builtin.assert:
+              that:
+                - _tmp_scm_timestamp
+              fail_msg: >-
+                Auto-Versioning failed to obtain the current scm
+                timestamp from type
+                '{{ _dbimg_iter.value.auto_versioning.scm_based.type }}'
+
+        when: _dbimg_iter.value.auto_versioning.get('scm_based', False)
+
+
+      - include_tasks: auto_versioning/common_post.yml
         loop: "{{ _tmp_in_versions }}"
         loop_control:
           loop_var: _autovcfg_iter
@@ -36,13 +59,17 @@
     when: _dbimg_iter.value.auto_versioning
 
 
+    ##
+    ## do the image (for each auto version)
+    ##
   - include_tasks: handle_image.yml
     loop: "{{ _auto_versions }}"
     loop_control:
       loop_var: _autovcfg_iter
 
 
-  - set_fact:
+  - name: record current image meta infos
+    set_fact:
       _docker_build_meta: >-
         {{ _docker_build_meta | combine(
             {'images': {_dbimg_iter.value.fullname: _cur_image_meta}},

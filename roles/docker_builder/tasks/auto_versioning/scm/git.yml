@@ -1,0 +1,17 @@
+---
+
+  - name: get current commit timestamp from git
+    ansible.builtin.command:
+      argv:
+        - git
+        - log
+        - '-1' 
+        - '--format=%cd' 
+        - "--date=format:{{ _dbimg_iter.value.auto_versioning.scm_based.date_format }}"
+      chdir: "{{ _dbimg_iter.value.auto_versioning.scm_based.repo_path }}"
+    register: _tmp_git_res
+
+
+  - set_fact:
+      _tmp_scm_timestamp: "{{ _tmp_git_res.stdout }}"
+
