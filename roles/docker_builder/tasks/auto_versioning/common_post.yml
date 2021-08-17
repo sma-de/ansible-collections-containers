@@ -21,6 +21,23 @@
     when: _tmp_scm_timestamp
 
 
+  - name: decorate image with auto-version data
+    set_fact:
+      _cur_image_deco: >-
+        {{ _cur_image_deco 
+         | smabot.containers.add_deco(
+             key='contimg_verin', value=_tmp_cur_autover.version_in, 
+             add_env=['CONTIMG_VERSION_IN'],
+             add_label=['org.opencontainers.image.version']
+           )
+         | smabot.containers.add_deco(
+             key='contimg_idtag', value=_tmp_idtag, 
+             add_env=['CONTIMG_IDTAG'],
+             add_label=['contimage.self.idtag']
+           )
+        }}
+
+
   - name: >-
       check if computed id tag '{{ _tmp_idtag }}' for current 
       auto version '{{ _autovcfg_iter }}' exists 

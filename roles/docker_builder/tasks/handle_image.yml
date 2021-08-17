@@ -236,10 +236,22 @@
               compute_contenv_args:
                 task_name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
                 config_ansvar: _cur_dockimg
-                extra_env: "{{ _tmp_extra_env }}"
+                extra_envs:
+                  - "{{ _tmp_extra_env }}"
+                  - "{{ _cur_image_deco | smabot.containers.deco_to_env }}"
 
           - debug:
               var: _cur_dockimg
+
+## do dynamic labels
+
+          - set_fact:
+              _cur_image_labels: >-
+                {{ _cur_image_labels 
+                 | combine((
+                      _cur_image_deco | smabot.containers.deco_to_labels
+                   ))
+                }}
 
         ## note: some ssl systems needs specific env vars set, 
         ##   and it is totally possible we want to use them 
@@ -276,6 +288,8 @@
       ## image name + tag exist already on docker node or is pullable
       force: True
 
+      authors: "{{ _cur_dockimg.authors | default(omit, true) }}"
+
       ## TODO: complete keywords
       docker_keywords:
         ## 1:1 analogous to dockerfile statements with the same name, all optional
@@ -283,7 +297,7 @@
         ENTRYPOINT: "{{ _cur_dockimg.entrypoint | default(omit, True) }}"
         ENV: "{{ _cur_dockimg.environment.static | default(omit, True) }}"
         EXPOSE: "{{ _cur_dockimg.expose | default(omit, True) }}"
-        LABEL: "{{ _cur_dockimg.docker_labels | default(omit, True) }}"
+        LABEL: "{{ _cur_image_labels }}"
         USER: "{{ _cur_dockimg.docker_user | default(omit, True) }}"
         WORKDIR: "{{ _cur_dockimg.workdir | default(omit, True) }}"
 

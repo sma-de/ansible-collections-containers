@@ -7,7 +7,7 @@
   - name: "{{ compute_contenv_args.task_name }}"
     smabot.containers.compute_container_env:
       config_ansvar: "{{ compute_contenv_args.config_ansvar }}"
-      extra_env: "{{ compute_contenv_args.extra_env | default(omit, True) }}"
+      extra_envs: "{{ compute_contenv_args.extra_envs | default(omit, True) }}"
     register: _tmp_modres_
 
     ##

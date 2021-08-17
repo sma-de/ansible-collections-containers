@@ -35,7 +35,7 @@ class ActionModule(BaseAction):
           'ENTRYPOINT': (list(string_types) + [list(string_types)], []),
           'ENV': ([collections.abc.Mapping], {}),
           'EXPOSE': ([list(string_types)], []),
-          'LABEL': ([list(string_types)], []),
+          'LABEL': ([collections.abc.Mapping], []),
           'USER': (list(string_types), ''),
           'WORKDIR': (list(string_types), ''),
         }
@@ -44,6 +44,7 @@ class ActionModule(BaseAction):
           'container': (list(string_types)),
           'image_name': (list(string_types)),
           'image_tag': (list(string_types), ''),
+          'authors': ([list(string_types)], []),
           'force': ([bool], False),
 
           'docker_keywords': ([collections.abc.Mapping], {}, dkeys_subspec),
@@ -115,7 +116,7 @@ class ActionModule(BaseAction):
                 tmp = []
 
                 for (vk, vv) in iteritems(v):
-                    tmp.append("{}={}".format(vk, vv))
+                    tmp.append('{}="{}"'.format(vk, vv))
 
                 v = tmp
             elif isinstance(v, list):
@@ -127,6 +128,9 @@ class ActionModule(BaseAction):
             for x in v:
                 x = "{} {}".format(k, x)
                 commit_command += ['-c', x]
+
+        for a in self.get_taskparam('authors'):
+            commit_command += ['-a', a]
 
         commit_command += [container, img_fullname]
 

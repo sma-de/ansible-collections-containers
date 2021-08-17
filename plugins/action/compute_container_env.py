@@ -63,8 +63,9 @@ class DockInstEnvHandler(NormalizerBase):
             for (k, v) in iteritems(proxy):
                 add_new_envkey(k, v, constenv, env_keys)
 
-        for (k, v) in iteritems(self.pluginref.get_taskparam('extra_env')):
-            add_new_envkey(k, v, constenv, env_keys)
+        for xenv in self.pluginref.get_taskparam('extra_envs'):
+            for (k, v) in iteritems(xenv):
+                add_new_envkey(k, v, constenv, env_keys)
 
         dynenv = my_subcfg.get('dynamic', None)
 
@@ -112,7 +113,7 @@ class ActionModule(ConfigNormalizerBase):
         tmp = super(ActionModule, self).argspec
 
         tmp.update({
-          'extra_env': ([collections.abc.Mapping], {}),
+          'extra_envs': ([[collections.abc.Mapping]], {}),
         })
 
         return tmp
