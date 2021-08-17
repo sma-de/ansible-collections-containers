@@ -5,6 +5,7 @@ __metaclass__ = type
 
 import abc
 import copy
+import re
 
 from ansible.errors import AnsibleOptionsError
 
@@ -81,6 +82,70 @@ class ScmHandlerGit(ScmHandler):
 
     def get_current_commit_timestamp(self, repo_path):
         return self._logformat_cmd(repo_path, 'cd')
+
+    def get_current_commit_branch_heads(self, repo_path):
+        curhash = self.get_current_commit_hash(repo_path)
+
+        local_branches = []
+        remote_branches = []
+
+        tmp = self._standard_gitcmd(repo_path, 'show-ref')
+
+        for l in tmp.split('\n'):
+            h, ref = re.split(r'\s+', l)
+
+            if h != curhash:
+                continue
+
+            p = 'refs/heads/'
+
+            if ref.startswith(p):
+                local_branches.append(ref[len(p):])
+
+            p = 'refs/remotes/'
+
+            if ref.startswith(p):
+                remote_branches.append(ref[len(p):])
+
+        return {
+          'local': local_branches,
+          'remote': remote_branches,
+        }
+
+
+
+def mod_branch_norming(branch, replacements=None):
+    for r in replacements:
+        old, new = r
+        branch = re.sub(old, new, branch)
+
+    return branch
+
+
+def mod_branch_prefix_remove(branch, prefix_list=None):
+    for pfx in prefix_list:
+        if branch.startswith(pfx):
+            branch = branch[len(pfx):]
+
+    return branch
+
+
+def mod_branch(branch, modcfg):
+    if not modcfg:
+        return branch
+
+    for m in modcfg:
+        mid = m['id']
+        mfn = globals().get('mod_branch_' + mid, None)
+
+        if not mfn:
+            raise AnsibleOptionsError(
+              "Unsupported branch mod function '{}'".format(mid)
+            )
+
+        branch = mfn(branch, **m['params'])
+
+    return branch
 
 
 def get_type_handler(scmtype, *args):
@@ -263,12 +328,13 @@ class DockConfNormImageSCMBased(NormalizerBase):
 
     def __init__(self, pluginref, *args, **kwargs):
         self._add_defaultsetter(kwargs, 
-          'config', DefaultSetterConstant(dict())
-        )
-
-        self._add_defaultsetter(kwargs, 
           'metadata', DefaultSetterConstant(dict())
         )
+
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockConfNormImageSCMBasedConfig(pluginref),
+        ]
 
         super(DockConfNormImageSCMBased, self).__init__(pluginref, *args, **kwargs)
 
@@ -280,19 +346,10 @@ class DockConfNormImageSCMBased(NormalizerBase):
     def simpleform_key(self):
         return SIMPLEKEY_IGNORE_VAL
 
-    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
-        tmp = my_subcfg['config']
-
-        scm_type = setdefault_none(tmp, 'type', 'git')
-
-        # on default assume that the playbook_dir is the best bet 
-        # for the correct repo path
-        repo_path = setdefault_none(tmp, 'repo_path', 
-          self.pluginref.get_ansible_var('playbook_dir')
-        )
-
+    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
         # default fill scm metadata
-        tmp = get_type_handler(scm_type, self.pluginref)
+        repo_path = my_subcfg['config']['repo_path']
+        tmp = get_type_handler(my_subcfg['config']['type'], self.pluginref)
         md = my_subcfg['metadata']
 
         setdefault_none(md, 'curcommit_hash', 
@@ -310,6 +367,118 @@ class DockConfNormImageSCMBased(NormalizerBase):
         setdefault_none(md, 'curcommit_timestamp', 
           tmp.get_current_commit_timestamp(repo_path)
         )
+
+        branches = setdefault_none(md, 'curcommit_branch_heads', 
+          tmp.get_current_commit_branch_heads(repo_path)
+        )
+
+        pcfg = self.get_parentcfg(cfg, cfgpath_abs)
+
+        # optionally create branch tags
+        bt_cfg = my_subcfg['config'].get('branch_tags', None)
+
+        if bt_cfg and branches:
+            tags = pcfg['tags']
+
+            tmp = []
+
+            if bt_cfg['local']:
+                tmp += branches.get('local', [])
+
+            if bt_cfg['remote']:
+                tmp += branches.get('remote', [])
+
+            btmods = bt_cfg['mods']
+
+            for b in tmp:
+                tags.append(bt_cfg['prefix'] + mod_branch(b, btmods))
+
+        return my_subcfg
+
+
+class DockConfNormImageSCMBasedConfig(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs, 
+          'type', DefaultSetterConstant('git')
+        )
+
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          (DockConfNormImageSCMBasedCfgBranchTags, True),
+        ]
+
+        super(DockConfNormImageSCMBasedConfig, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['config']
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        # on default assume that the playbook_dir is the best bet 
+        # for the correct repo path
+        setdefault_none(my_subcfg, 'repo_path', 
+          self.pluginref.get_ansible_var('playbook_dir')
+        )
+
+        return my_subcfg
+
+
+class DockConfNormImageSCMBasedCfgBranchTags(NormalizerBase):
+
+    NORMER_CONFIG_PATH = ['branch_tags']
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs, 
+          'local', DefaultSetterConstant(False)
+        )
+
+        self._add_defaultsetter(kwargs, 
+          'remote', DefaultSetterConstant(True)
+        )
+
+        self._add_defaultsetter(kwargs, 
+          'prefix', DefaultSetterConstant('bt_')
+        )
+
+        self._add_defaultsetter(kwargs, 
+          'mods', DefaultSetterConstant([])
+        )
+
+        super(DockConfNormImageSCMBasedCfgBranchTags, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return self.NORMER_CONFIG_PATH
+
+    @property
+    def simpleform_key(self):
+        return SIMPLEKEY_IGNORE_VAL
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        mods = my_subcfg['mods']
+
+        if not mods:
+            mods.append({
+              'id': 'prefix_remove', 
+              'params': { 'prefix_list': ['origin/'] },
+            })
+
+        # if no user explicit norming is defined, set standard norming 
+        # fn as there are simply a lot of common symbols which are 
+        # not allowed in tags (like e.g. slashes)
+        normcfg = None
+
+        for m in mods:
+            if m['id'] == 'norming':
+                normcfg = m
+                break
+
+        if not normcfg:
+            mods.append({
+              'id': 'norming', 
+              'params': { 'replacements': [['/', '_'], [':', '_']] },
+            })
 
         return my_subcfg
 
