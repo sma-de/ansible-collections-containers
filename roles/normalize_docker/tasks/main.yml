@@ -15,6 +15,7 @@
       | combine({'config_ansvar': _tmp_norm_resvar}) }}
     register: _tmp_normer_res_
 
+
   - set_fact:
       "{{ _tmp_norm_resvar }}": "{{ _tmp_normer_res_.normalized }}"
 

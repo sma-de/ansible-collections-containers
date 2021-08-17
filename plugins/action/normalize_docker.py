@@ -5,6 +5,7 @@ __metaclass__ = type
 
 import abc
 import copy
+import os 
 import re
 
 from ansible.errors import AnsibleOptionsError
@@ -318,6 +319,12 @@ class DockConfNormImageInstance(NormalizerNamed):
                add_label=['org.opencontainers.image.authors'], 
                only_when_empty=True
             )
+
+        ## optionally append extra tags from env
+        tmp = os.environ.get('ANS_CONTBUILDER_EXTRA_IMGTAGS', None)
+
+        if tmp:
+            my_subcfg['tags'] += re.split(r'\s+', tmp.strip())
 
         return my_subcfg
 
