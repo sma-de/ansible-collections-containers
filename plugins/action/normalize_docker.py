@@ -321,7 +321,7 @@ class DockConfNormImageInstance(NormalizerNamed):
             )
 
         ## optionally append extra tags from env
-        tmp = os.environ.get('ANS_CONTBUILDER_EXTRA_IMGTAGS', None)
+        tmp = os.environ.get('SMABOT_CONTAINERS_BLDR_EXTRA_IMGTAGS', None)
 
         if tmp:
             my_subcfg['tags'] += re.split(r'\s+', tmp.strip())

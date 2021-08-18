@@ -79,13 +79,13 @@
 
   - set_fact:
       _docker_force_rebuild: >-
-        {{ bool(ans_contbuilder_force_rebuild) }}
-    when: ans_contbuilder_force_rebuild is defined
+        {{ bool(smabot_containers_bldr_force_rebuild) }}
+    when: smabot_containers_bldr_force_rebuild is defined
 
   - set_fact:
       _docker_force_rebuild: >-
-         {{lookup('env', 'ANS_CONTBUILDER_FORCE_REBUILD') | bool }}
-    when: not ans_contbuilder_force_rebuild is defined
+         {{lookup('env', 'SMABOT_CONTAINERS_BLDR_FORCE_REBUILD') | bool }}
+    when: not smabot_containers_bldr_force_rebuild is defined
 
 
   - include_tasks: handle_owners.yml
