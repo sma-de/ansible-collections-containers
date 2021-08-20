@@ -47,21 +47,27 @@ class DockInstEnvHandler(NormalizerBase):
 
                 add_new_envkey(k, modret['stdout'], resmap, env_keys)
 
+        ## update: dont do special stuff for proxy and const vars here anymore, they are now handle differently externally (and passed in as extra_envs)
+        ##constenv = get_subdict(my_subcfg, ['static'], default_empty=True)
+        ##env_keys = list(constenv.keys())
+
+        ##proxy = cfg.get('proxy', None)
+
+        ##if proxy:
+        ##    ## if proxy is set, copy proxy vars to env
+        ##    proxy = proxy.get('vars', None)
+
+        ##    ansible_assert(proxy, 
+        ##      "bad docker config, proxy set but proxy vars are empty"
+        ##    )
+
+        ##    for (k, v) in iteritems(proxy):
+        ##        add_new_envkey(k, v, constenv, env_keys)
+
         constenv = get_subdict(my_subcfg, ['static'], default_empty=True)
-        env_keys = list(constenv.keys())
+        constenv.clear()
 
-        proxy = cfg.get('proxy', None)
-
-        if proxy:
-            ## if proxy is set, copy proxy vars to env
-            proxy = proxy.get('vars', None)
-
-            ansible_assert(proxy, 
-              "bad docker config, proxy set but proxy vars are empty"
-            )
-
-            for (k, v) in iteritems(proxy):
-                add_new_envkey(k, v, constenv, env_keys)
+        env_keys = []
 
         for xenv in self.pluginref.get_taskparam('extra_envs'):
             for (k, v) in iteritems(xenv):

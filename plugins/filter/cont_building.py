@@ -27,6 +27,97 @@ display = Display()
 
 
 
+class AppendContEnvFilter(FilterBase):
+
+    FILTER_ID = 'append_contenv'
+
+    @property
+    def argspec(self):
+        tmp = super(AppendContEnvFilter, self).argspec
+
+        tmp.update({
+          'new_vars': ([collections.abc.Mapping],),
+          'strategy': (list(string_types), 'replace'),
+          'stratopts': ([collections.abc.Mapping], {}),
+        })
+
+        return tmp
+
+
+    def _do_strat_basic(self, conflict_handler, key, curvars, newvars, **kwargs):
+        if key not in curvars:
+            # if key is also new, we dont have a conflict
+            return newvars[key]
+
+        oldval = curvars[key]
+        newval = newvars[key]
+
+        return conflict_handler(key, oldval, newval, **kwargs)
+
+
+    def do_strat_write_once(self, key, oldval, newval, **kwargs):
+        if oldval == newval:
+            # if for some strange reason oldval and newval 
+            # are identical, there is no reason to error out I guess
+            return oldval
+
+        ## write once does not allow resetting existing keys, 
+        ## so it simply generates an error when a write conflict occours
+        raise AnsibleFilterError(
+           "Trying to overwrite already existing var key '{}' with"\
+           " current value '{}' with value '{}', but selected"\
+           " write_once strategy forbids resetting keys.".format(
+              k, oldval, newval
+           )
+        )
+
+
+    def do_strat_keep_first(self, key, oldval, newval, **kwargs):
+        ## keep first strat prefers old over new value
+        return oldval
+
+
+    def do_strat_replace(self, key, oldval, newval, **kwargs):
+        ## replace strat always prefers newval over oldval
+        return newval
+
+
+    def do_strat_combine(self, key, oldval, newval, 
+        old_first=True, combiner=' ', **kwargs
+    ):
+        ## combine strat combines old and new value
+        if old_first:
+            return oldval + combiner + newval
+        return newval + combiner + oldval
+
+
+    def run_specific(self, value):
+        if not isinstance(value, collections.abc.Mapping):
+            raise AnsibleOptionsError("filter input must be a mapping")
+
+        curvars = value.setdefault('vars', {})
+        newvars = self.get_taskparam('new_vars')
+
+        strat = self.get_taskparam('strategy')
+        stratopts = self.get_taskparam('stratopts')
+
+        tmp = getattr(self, 'do_strat_' + strat, None)
+
+        if not tmp:
+            raise AnsibleOptionsError(
+               "Unsupported strategy '{}'".format(strat)
+            )
+
+        strat = tmp
+
+        for (k, v) in newvars.items():
+            curvars[k] = self._do_strat_basic(
+              strat, k, curvars, newvars, **stratopts
+            )
+
+        return value
+
+
 class DecoAddFilter(FilterBase):
 
     FILTER_ID = 'add_deco'
@@ -113,7 +204,7 @@ class FilterModule(object):
     def filters(self):
         res = {}
 
-        for f in [DecoAddFilter, DecoToEnvFilter, DecoToLabelsFilter]:
+        for f in [AppendContEnvFilter, DecoAddFilter, DecoToEnvFilter, DecoToLabelsFilter]:
             res[f.FILTER_ID] = f()
 
         return res

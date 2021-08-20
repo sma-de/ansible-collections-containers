@@ -4,7 +4,20 @@
        _auto_versions: [{}]
        _cur_image_meta: {}
        _cur_image_deco: "{{ _dbimg_iter.value.decorations }}"
-       _cur_image_labels: "{{ _dbimg_iter.value.docker_labels | default({}, True) }}"
+
+       _cur_image_labels: >-
+          {{ _dbimg_iter.value.docker_labels | default({}, True) }}
+
+       _cur_image_env: >-
+          {{ {} | smabot.containers.append_contenv(
+               new_vars=(_dbimg_iter.value.environment.static
+                 | default({}, True)
+               ) 
+             )
+           | smabot.containers.append_contenv(
+               new_vars=(_dbimg_iter.value.proxy.vars | default(None))
+             )
+          }}
 
 
     ##

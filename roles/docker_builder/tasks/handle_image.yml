@@ -83,8 +83,8 @@
 
       - set_fact:
           _tmp_bootstrap_env: >- 
-            {{ _tmp_bootstrap_env | combine(_dbimg_iter.value.proxy.vars) }}
-        when: _dbimg_iter.value.get('proxy', {}) is truthy
+            {{ _tmp_bootstrap_env | combine(_cur_dockimg.proxy.vars) }}
+        when: _cur_dockimg.proxy.vars is truthy
 
 
       ## TODO: this step must become distro agnostic obviously
@@ -149,6 +149,7 @@
           ## - set_fact:
           ##     ansible_facts: "{{ hostvars[ansible_host].ansible_facts }}"
 
+
 ## handle docker copy
       - include_role:
           name: smabot.containers.copy_to_image
@@ -159,16 +160,19 @@
             image_name: "{{ _cur_dockimg.shortname }}"
             image_owner: "{{ _cur_dockimg.owner }}"
 
+
 ## do steps prepackage
       - name: handle custom pre package install steps
         include_tasks: "{{ _cur_dockimg.steps.pre_packages }}"
         when: _cur_dockimg.get('steps', {}).get('pre_packages', None) is truthy
+
 
 ## do standard package install
       - name: standard distro package installs  ==>>  {{ _dbimg_iter.value.fullname }}
         package: 
           name: "{{ _cur_dockimg.packages.distro.packages | dict2items() | map(attribute='key') | list }}"
           state: present
+
 
 # handle user accounts
       - name: handle user '{{ _iter_img_users.key }}'  ==>>  {{ _dbimg_iter.value.fullname }}
@@ -177,97 +181,165 @@
         loop_control:
           loop_var: _iter_img_users
 
-## handle certificates
-      - include_role:
-          name: smabot.base.handle_system_certs
-        vars:
-          handle_system_certs_args: >-
-            {{ _cur_dockimg.ssl_certs | default({}, True) }}
-        when: _cur_dockimg.get('ssl-certs', {}).get('disable', False) is falsy
+
+#
+# do java proxy handling
+#
+# note: we do this after standard package install step, as it is 
+#   absolutely possible, that java is not pre inherited from 
+#   parent, but is installed during this building operation, so 
+#   we prefer it atm to be handled after package install
+#
+#   -> the big caveat of this is obviously if java is already 
+#     installed before hand somehow and proxying for it is 
+#     necessary, we cannot use it before we come to this 
+#     point (e.g. for custom pre install steps)
+#
+
+        # is used for collecting java installation facts and maybe more
+      - include_role: 
+          name: smabot.base.extended_facts
 
 
       - block:
 
-          - name: pip3 package installs  ==>>  {{ _dbimg_iter.value.fullname }}
-            pip: 
-              name: "{{ _cur_dockimg.packages.pip3.packages | dict2items() | map(attribute='key') | list }}"
-              state: present
+          - name: add java proxy envvars when appropriate
+            set_fact:
+              _cur_image_env: >-
+                 {{ _cur_image_env | smabot.containers.append_contenv(
+                      new_vars=(_cur_dockimg.proxy.eco_systems.java.envvars
+                        | default(None)
+                      ), strategy='combine'
+                    )
+                 }}
+
+            ##
+            ## do this either when config explicitly requested it, or 
+            ## when auto dection is on and a java installation was 
+            ## found in container system (which is expected to produce 
+            ## some extended facts related to java)
+            ##
+            when: >-
+              not _cur_dockimg.proxy.eco_systems.java.auto_detect
+              or (_cur_dockimg.proxy.eco_systems.java.auto_detect
+                  and ansible_facts.java is defined)
+
+
+          - smabot.base.warn:
+              msg: >-
+                Configuration explicitly requested java proxy handling 
+                but no java installation on container system could be found.
+
+            when: >-
+              not _cur_dockimg.proxy.eco_systems.java.auto_detect
+              and ansible_facts.java is undefined
+
+        when: _cur_dockimg.proxy.eco_systems.java.activate is truthy
+
+
+## handle certificates
+      - block:
+
+          - name: handle extra ssl certificates
+            include_role:
+              name: smabot.base.handle_system_certs
+            vars:
+              handle_system_certs_args: >-
+                {{ _cur_dockimg.ssl_certs | default({}, True) }}
+
+            ##
+            ## note: some ssl systems needs specific env vars set, 
+            ##   and it is totally possible we want to use them 
+            ##   for the rest of docker building
+            ##
+          - name: add certificate related envvars
+            set_fact:
+              _cur_image_env: >-
+                 {{ _cur_image_env | smabot.containers.append_contenv(
+                      new_vars=(handle_system_certs_result.envvars
+                        | default(None)
+                      )
+                    )
+                 }}
+            when: handle_system_certs_result.envvars is truthy
+
+        when: _cur_dockimg.get('ssl-certs', {}).get('disable', False) is falsy
+
+
+      - name: pip3 package installs  ==>>  {{ _dbimg_iter.value.fullname }}
+        pip: 
+          name: "{{ _cur_dockimg.packages.pip3.packages | dict2items() | map(attribute='key') | list }}"
+          state: present
 
 ## do steps postpackage
-          - name: handle custom post package install steps
-            include_tasks: "{{ _cur_dockimg.steps.post_packages }}"
-            when: _cur_dockimg.get('steps', {}).get('post_packages', None) is truthy
+      - name: handle custom post package install steps
+        include_tasks: "{{ _cur_dockimg.steps.post_packages }}"
+        when: _cur_dockimg.get('steps', {}).get('post_packages', None) is truthy
 
 ## do dynamic env
+
+
+      - name: set container $USER envvar to configured docker_user  ==>>  {{ _dbimg_iter.value.fullname }}
+        set_fact:
+          _cur_image_env: >-
+             {{ _cur_image_env | smabot.containers.append_contenv(
+                  new_vars={'USER': _cur_dockimg.docker_user}
+                )
+             }}
+        when: _cur_dockimg.docker_user
+
 
       ##
       ## note: as always atm direct uppdating per ansfact return is broken, 
       ##   so we use here also a workaround role for now
       ##
-
-          - set_fact:
-              _tmp_extra_env: {}
-
-          - name: make sure to add proxy settings to container environment  ==>>  {{ _dbimg_iter.value.fullname }}
-            set_fact:
-              _tmp_extra_env: >-
-                 {{ _tmp_extra_env 
-                  | combine(handle_system_certs_result.envvars)
-                 }}
-            when: handle_system_certs_result.envvars
-
-
-          - name: set container $USER envvar to configured docker_user  ==>>  {{ _dbimg_iter.value.fullname }}
-            set_fact:
-              _tmp_extra_env: >-
-                 {{ _tmp_extra_env 
-                  | combine({'USER': _cur_dockimg.docker_user}) 
-                 }}
-            when: _cur_dockimg.docker_user
-
-
           ## - name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
           ##   smabot.containers.compute_container_env:
           ##     config_ansvar: '_cur_dockimg'
 
-          - include_role:
-              name: smabot.containers.compute_container_env
-            vars:
-              compute_contenv_args:
-                task_name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
-                config_ansvar: _cur_dockimg
-                extra_envs:
-                  - "{{ _tmp_extra_env }}"
-                  - "{{ _cur_image_deco | smabot.containers.deco_to_env }}"
+      - include_role:
+          name: smabot.containers.compute_container_env
+        vars:
+          compute_contenv_args:
+            task_name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
+            config_ansvar: _cur_dockimg
+            extra_envs:
+              - "{{ _cur_image_env.vars }}"
+              - "{{ _cur_image_deco | smabot.containers.deco_to_env }}"
 
-          - debug:
-              var: _cur_dockimg
+      - debug:
+          var: _cur_dockimg
 
 ## do dynamic labels
 
-          - set_fact:
-              _cur_image_labels: >-
-                {{ _cur_image_labels 
-                 | combine((
-                      _cur_image_deco | smabot.containers.deco_to_labels
-                   ))
-                }}
-
-        ## note: some ssl systems needs specific env vars set, 
-        ##   and it is totally possible we want to use them 
-        ##   for the rest of docker building
-        environment: "{{ handle_system_certs_result.envvars }}"
+      - set_fact:
+          _cur_image_labels: >-
+            {{ _cur_image_labels 
+             | combine((
+                  _cur_image_deco | smabot.containers.deco_to_labels
+               ))
+            }}
 
     ##
-    ## switch ansible context into the docker builder container by using the delegate mechanism (as using "hosts:" only works for top level playbooks)
+    ## switch ansible context into the docker builder container 
+    ## by using the delegate mechanism (as using "hosts:" 
+    ## only works for top level playbooks)
     ##
     delegate_to: "{{ _bcon_name }}"
 
     ##
-    ## here we will set the proxy for the build time
+    ## make at least part of final image environment also avaible 
+    ## during build phase, this is important for stuff like proxies
+    ##
+    ## note: environment seems to use actually a direct reference 
+    ##   of the passed dict (not a copy of it), which means if we 
+    ##   update this dict later during build these envvars are 
+    ##   immediately avaible for following module calls, which 
+    ##   than means we dont need extra nested blocks every time 
+    ##   we update environment variables
     ##
     environment: >-
-      {{ (_cur_dockimg.proxy | default({}, True)).vars | default({}, True) }}
+      {{ _cur_image_env.vars }}
 
 
 ##
@@ -316,7 +388,9 @@
       _build_tags: "{{ [_autovcfg_iter.idtag] + _build_tags }}"
     when: _autovcfg_iter.idtag
 
-  - name: no explicit tags for this build found, so build default tag latest  ==>>  {{ _dbimg_iter.value.fullname }}
+  - name: >-
+      no explicit tags for this build found, so build default 
+      tag latest  ==>>  {{ _dbimg_iter.value.fullname }}
     set_fact:
       _build_tags: ['latest']
     when: not _build_tags

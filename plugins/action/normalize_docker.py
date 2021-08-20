@@ -251,9 +251,25 @@ class DockConfNormImageInstance(NormalizerNamed):
           'tags', DefaultSetterConstant([])
         )
 
+        self._add_defaultsetter(kwargs, 
+          'environment', DefaultSetterConstant(dict())
+        )
+
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
-          ConfigNormerProxy(pluginref),
+          ##
+          ## note: on default proxy eco-systems (like java) are on 
+          ##   auto-detect mode, which means they only are handled 
+          ##   when eco-system is detected on target, but as our 
+          ##   target here is the container we will build but this 
+          ##   normalizing is (has to be) done before we switch 
+          ##   into container index we will force eco system 
+          ##   handling "on" here and will decide later if we use 
+          ##   them actually (note: this implies that we never 
+          ##   actually must interact with the ecosystem in question 
+          ##   for doing proper proxy normalizing for it)
+          ##
+          ConfigNormerProxy(pluginref, force_ecosystems=True),
           (DockConfNormImageSCMBased, True), # make this lazy initialized (only set it, when it already exists in input cfg)
           (DockConfNormImageAutoVersioning, True), # make this lazy initialized
           DockConfNormImageUsersGeneric(pluginref),

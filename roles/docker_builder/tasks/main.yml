@@ -66,6 +66,7 @@
   - debug:
       var: docker_build
 
+
   - include_role:
       name: smabot.containers.normalize_docker
 
