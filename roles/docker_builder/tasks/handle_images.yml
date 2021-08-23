@@ -71,7 +71,7 @@
         loop_control:
           loop_var: _autovcfg_iter
 
-    when: _dbimg_iter.value.auto_versioning
+    when: _dbimg_iter.value.auto_versioning is truthy
 
 
     ##
