@@ -602,7 +602,7 @@ class DockConfNormImageAutoVerSCMBased(NormalizerBase):
         merge_dicts(scmcfg, my_subcfg)
         my_subcfg.update(scmcfg)
 
-        setdefault_none(my_subcfg, 'date_format', '%Y%m%d_%H%m')
+        setdefault_none(my_subcfg, 'date_format', '%Y%m%d_%H%M')
 
         return my_subcfg
 
