@@ -290,6 +290,8 @@ class DockConfNormImageInstance(NormalizerNamed):
         owner = cfgpath_abs[-2]
         my_subcfg['owner'] = owner
         my_subcfg['fullname'] = owner + '/' + my_subcfg['shortname']
+
+##        my_subcfg.setdefault('packages', {}).setdefault()
         return my_subcfg
 
     def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):

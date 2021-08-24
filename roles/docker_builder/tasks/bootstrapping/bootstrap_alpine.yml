@@ -1,0 +1,22 @@
+---
+
+  - name: test if OS is alpine
+    ansible.builtin.raw: apk --version
+    register: _tmp_raw_res
+    failed_when: false
+
+
+  - block:
+
+      - set_fact:
+          _tmp_bootstrapper: alpine
+
+      # ansible will need python, and since it isn't there we can only use the special raw mode
+      # note: environment does not work for raw (also not when executable is set explicitly as the docu says), so we musst pass important settings here differently
+      - name: install python
+        ansible.builtin.raw: >-
+          {{ _tmp_bootstrap_env | smabot.base.kvlist | join(' ') }}
+          apk add --no-cache python3
+
+    when: _tmp_raw_res.rc == 0
+

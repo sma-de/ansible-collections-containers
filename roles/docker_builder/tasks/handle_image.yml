@@ -74,24 +74,8 @@
     ## if for a specific image the builder really, really dont want python in it we will provide a custom flag to set to force removing python again when building is through
     ##
 
-        ##
-        ## optionally prepare environment for bootstrapping process, 
-        ## this might be necessary for proxies and such
-        ##
-      - set_fact:
-          _tmp_bootstrap_env: {}
-
-      - set_fact:
-          _tmp_bootstrap_env: >- 
-            {{ _tmp_bootstrap_env | combine(_cur_dockimg.proxy.vars) }}
-        when: _cur_dockimg.proxy.vars is truthy
-
-
-      ## TODO: this step must become distro agnostic obviously
-      # ansible will need python, and since it isn't there we can only use the special raw mode
-      # note: environment does not work for raw (also not when executable is set explicitly as the docu says), so we musst pass important settings here differently
-      - name: install python
-        raw: "{{ _tmp_bootstrap_env | smabot.base.kvlist | join(' ') }} apk add --no-cache python3"
+      - name: bootstrap container system for ansible usage
+        include_tasks: bootstrapping/main.yml
 
         ##
         ## note: standard facts gathering does not work because 
@@ -269,6 +253,7 @@
       - name: pip3 package installs  ==>>  {{ _dbimg_iter.value.fullname }}
         pip: 
           name: "{{ _cur_dockimg.packages.pip3.packages | dict2items() | map(attribute='key') | list }}"
+##          state: latest
           state: present
 
 ## do steps postpackage
@@ -386,7 +371,7 @@
 
   - set_fact:
       _build_tags: "{{ [_autovcfg_iter.idtag] + _build_tags }}"
-    when: _autovcfg_iter.idtag
+    when: _autovcfg_iter.idtag | default(False, True)
 
   - name: >-
       no explicit tags for this build found, so build default 
