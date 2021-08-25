@@ -1,0 +1,23 @@
+---
+
+  - set_fact:
+      _tmp_pinst_handled: false
+
+
+  - include_tasks: pinst_alpine.yml
+    when: ansible_os_family == "Alpine"
+
+
+  - include_tasks: pinst_debian.yml
+    when: ansible_os_family == "Debian"
+
+
+  - name: >-
+      standard distro package installs / removes (fallback) 
+       ==>>  {{ _cur_dockimg.fullname }}
+    ansible.builtin.package: "{{ _iter_packinst }}"
+    loop: "{{ _cur_dockimg.packages.distro._psets }}"
+    loop_control:
+      loop_var: _iter_packinst
+    when: _tmp_pinst_handled is falsy
+

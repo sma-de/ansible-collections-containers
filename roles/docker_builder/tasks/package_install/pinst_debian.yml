@@ -1,0 +1,36 @@
+---
+
+  - set_fact:
+      _tmp_pinst_handled: true
+
+
+  - include_tasks: alienarch_debian.yml
+    loop: "{{ _cur_dockimg.packages.distro.foreign_architectures }}"
+    loop_control:
+      loop_var: _iter_pack_alienarchs
+
+
+    ##
+    ## notes for os defaults:
+    ##
+    ##   update_cache == true 
+    ##      -> normally apt-get update is always necessary before install
+    ##
+    ##   install_recommends == false
+    ##      -> be explicit here on default and dont install 
+    ##         more than what was asked for
+    ##
+  - name: >-
+      standard distro package installs / removes (debian) 
+       ==>>  {{ _cur_dockimg.fullname }}
+    ansible.builtin.apt: "{{ _iter_packinst }}" 
+    loop: >-
+      {{ _cur_dockimg.packages.distro 
+       | smabot.containers.to_psets(os_defaults={
+           'update_cache': True,
+           'install_recommends': False,
+         }) 
+      }}
+    loop_control:
+      loop_var: _iter_packinst
+

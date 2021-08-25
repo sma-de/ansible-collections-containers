@@ -152,10 +152,8 @@
 
 
 ## do standard package install
-      - name: standard distro package installs  ==>>  {{ _dbimg_iter.value.fullname }}
-        package: 
-          name: "{{ _cur_dockimg.packages.distro.packages | dict2items() | map(attribute='key') | list }}"
-          state: present
+      - name: standard distro package installs  ==>>  {{ _cur_dockimg.fullname }}
+        include_tasks: package_install/main.yml
 
 
 # handle user accounts
@@ -250,11 +248,11 @@
         when: _cur_dockimg.get('ssl-certs', {}).get('disable', False) is falsy
 
 
-      - name: pip3 package installs  ==>>  {{ _dbimg_iter.value.fullname }}
-        pip: 
-          name: "{{ _cur_dockimg.packages.pip3.packages | dict2items() | map(attribute='key') | list }}"
-##          state: latest
-          state: present
+      - name: pip package installs  ==>>  {{ _cur_dockimg.fullname }}
+        ansible.builtin.pip: "{{ _iter_packinst }}" 
+        loop: "{{ _cur_dockimg.packages.pip | smabot.containers.to_psets }}"
+        loop_control:
+          loop_var: _iter_packinst
 
 ## do steps postpackage
       - name: handle custom post package install steps

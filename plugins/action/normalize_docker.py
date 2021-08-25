@@ -184,6 +184,7 @@ def get_docker_parent_infos(pluginref, parent_name):
     return tmp
 
 
+
 class DockerConfigNormalizer(NormalizerBase):
 
     def __init__(self, pluginref, *args, **kwargs):
@@ -194,6 +195,7 @@ class DockerConfigNormalizer(NormalizerBase):
         ]
 
         super(DockerConfigNormalizer, self).__init__(pluginref, *args, **kwargs)
+
 
 
 class DockConfNormMeta(NormalizerBase):
@@ -214,6 +216,7 @@ class DockConfNormMeta(NormalizerBase):
         return ['meta']
 
 
+
 class DockConfNormImageTree(NormalizerBase):
 
     def __init__(self, pluginref, *args, **kwargs):
@@ -229,6 +232,7 @@ class DockConfNormImageTree(NormalizerBase):
         return ['images']
 
 
+
 class DockConfNormImageOwner(NormalizerBase):
 
     def __init__(self, pluginref, *args, **kwargs):
@@ -242,6 +246,7 @@ class DockConfNormImageOwner(NormalizerBase):
     @property
     def config_path(self):
         return [SUBDICT_METAKEY_ANY]
+
 
 
 class DockConfNormImageInstance(NormalizerNamed):
@@ -274,6 +279,7 @@ class DockConfNormImageInstance(NormalizerNamed):
           (DockConfNormImageAutoVersioning, True), # make this lazy initialized
           DockConfNormImageUsersGeneric(pluginref),
           DockConfNormImageDecorations(pluginref),
+          DockConfNormImagePackages(pluginref),
         ]
 
         super(DockConfNormImageInstance, self).__init__(pluginref, *args, **kwargs)
@@ -345,6 +351,94 @@ class DockConfNormImageInstance(NormalizerNamed):
             my_subcfg['tags'] += re.split(r'\s+', tmp.strip())
 
         return my_subcfg
+
+
+
+class DockConfNormImagePackages(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockConfNormImageDistroPackages(pluginref),
+          DockConfNormImagePipPackages(pluginref),
+        ]
+
+        super(DockConfNormImagePackages, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['packages']
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        return my_subcfg
+
+
+
+class DockConfNormImageDistroPackages(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs, 
+          'foreign_architectures', DefaultSetterConstant(['i386'])
+        )
+
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockConfNormImagePackDefaults(pluginref),
+          DockConfNormImageDistroPackInst(pluginref),
+        ]
+
+        super(DockConfNormImageDistroPackages, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['distro']
+
+
+
+class DockConfNormImagePackDefaults(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs, 
+          'state', DefaultSetterConstant('latest')
+        )
+
+        super(DockConfNormImagePackDefaults, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['default_settings']
+
+
+class DockConfNormImagePipPackages(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockConfNormImagePackDefaults(pluginref),
+          DockConfNormImagePipPackInst(pluginref),
+        ]
+
+        super(DockConfNormImagePipPackages, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['pip']
+
+
+class DockConfNormImagePackInst(NormalizerNamed):
+
+    @property
+    def config_path(self):
+        return ['packages', SUBDICT_METAKEY_ANY]
+
+
+class DockConfNormImageDistroPackInst(DockConfNormImagePackInst):
+    pass
+
+
+class DockConfNormImagePipPackInst(DockConfNormImagePackInst):
+    pass
+
 
 
 class DockConfNormImageSCMBased(NormalizerBase):

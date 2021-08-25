@@ -7,6 +7,7 @@ ANSIBLE_METADATA = {
 }
 
 import collections
+import copy
 
 from ansible.errors import AnsibleFilterError, AnsibleOptionsError
 from ansible.module_utils.six import string_types
@@ -24,6 +25,84 @@ from ansible.utils.display import Display
 
 
 display = Display()
+
+
+
+class PSetsFilter(FilterBase):
+
+    FILTER_ID = 'to_psets'
+
+    @property
+    def argspec(self):
+        tmp = super(PSetsFilter, self).argspec
+
+        tmp.update({
+          'os_defaults': ([collections.abc.Mapping], {}),
+        })
+
+        return tmp
+
+
+    def _get_matching_pset(self, package, psets, default_settings):
+        ## get package level module option overwrites
+        p_modopts = package.get('modopts', None)
+
+        if not p_modopts:
+            # if package has no module option overwrites, 
+            # just use the default first one
+            return psets[0]
+
+        for ps in psets:
+            matches = True
+
+            for (k, v) in p_modopts:
+                if k not in ps:
+                    # for pset purposes, a non set key counts as mismatch
+                    matches = False
+                    break
+
+                if ps[k] != v:
+                    # pset mod opt value differs from package overwrite 
+                    # value, so no match
+                    matches = False
+                    break
+
+            if matches:
+                return ps
+
+        # no existing pset matches specific package overwrites, 
+        # so create a new one
+        tmp = copy.deepcopy(default_settings)
+        tmp.update(p_modopts)
+        psets.append(tmp)
+
+        return tmp
+
+
+    def run_specific(self, value):
+        if not isinstance(value, collections.abc.Mapping):
+            raise AnsibleOptionsError("filter input must be a mapping")
+
+        packages = value['packages']
+        psets = []
+
+        if not packages:
+            # no packages configured, so psets are empty
+            return psets
+
+        defaults = copy.deepcopy(self.get_taskparam('os_defaults'))
+        defaults.update(copy.deepcopy(value['default_settings']))
+
+        psets.append(defaults)
+
+        for (k, v) in packages.items():
+            # find the correct pset for package
+            tmp = self._get_matching_pset(v, psets, defaults)
+
+            # add package to pset
+            tmp.setdefault('name', []).append(v['name'])
+
+        return psets
 
 
 
@@ -204,7 +283,15 @@ class FilterModule(object):
     def filters(self):
         res = {}
 
-        for f in [AppendContEnvFilter, DecoAddFilter, DecoToEnvFilter, DecoToLabelsFilter]:
+        tmp = [
+           AppendContEnvFilter, 
+           DecoAddFilter, 
+           DecoToEnvFilter, 
+           DecoToLabelsFilter, 
+           PSetsFilter
+        ]
+
+        for f in tmp:
             res[f.FILTER_ID] = f()
 
         return res

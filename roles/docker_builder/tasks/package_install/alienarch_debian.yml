@@ -1,0 +1,20 @@
+---
+
+  - name: >-
+      check if foreign arch is enabled already  ==>>  {{ _iter_pack_alienarchs }}
+    ansible.builtin.shell:
+      cmd: >-
+        dpkg --print-foreign-architectures | grep {{ _iter_pack_alienarchs }}
+    register: _tmp_shell_res
+    changed_when: _tmp_shell_res.rc == 1
+    failed_when: _tmp_shell_res.rc > 1
+
+
+  - name: enable foreign architecture  ==>>  {{ _iter_pack_alienarchs }}
+    ansible.builtin.command:
+     argv:
+       - dpkg 
+       - "--add-architecture"
+       - "{{ _iter_pack_alienarchs }}"
+    when: _tmp_shell_res.rc == 1
+

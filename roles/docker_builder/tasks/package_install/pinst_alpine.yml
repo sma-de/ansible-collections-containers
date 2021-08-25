@@ -1,0 +1,26 @@
+---
+
+  - set_fact:
+      _tmp_pinst_handled: true
+
+
+    ##
+    ## notes for os defaults:
+    ##
+    ##   no_cache == true 
+    ##      -> we are containering here, so avoid local caches 
+    ##         as much as possible
+    ##
+  - name: >-
+      standard distro package installs / removes (alpine) 
+       ==>>  {{ _cur_dockimg.fullname }}
+    community.general.apk: "{{ _iter_packinst }}" 
+    loop: >-
+      {{ _cur_dockimg.packages.distro 
+       | smabot.containers.to_psets(os_defaults={
+           'no_cache': True,
+         }) 
+      }}
+    loop_control:
+      loop_var: _iter_packinst
+
