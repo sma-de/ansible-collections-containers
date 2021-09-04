@@ -1,35 +1,51 @@
 ---
 
     ##
-    ## optionally prepare environment for bootstrapping process, 
-    ## this might be necessary for proxies and such
+    ## note: atm bootstrapping means installing a python env to 
+    ##   use for ansible, not more not less, so if python 
+    ##   exists already on target, bootstrapping can be skipped
     ##
-  - set_fact:
-      _tmp_bootstrap_env: {}
-      _tmp_bootstrapper:
-      _tmp_supported_bstrapper:
-         - alpine
-         - debian
-  
-
-  - set_fact:
-      _tmp_bootstrap_env: >- 
-        {{ _tmp_bootstrap_env | combine(_cur_dockimg.proxy.vars) }}
-    when: _cur_dockimg.proxy.vars is truthy
+  - name: check if python is already installed (on PATH)
+    ansible.builtin.raw: >-
+      python --version || python3 --version
+    register: _tmp_py_installed
+    failed_when: false
 
 
-  - name: container bootstrapping  ==>>  try {{ _iter_bstrapper }}
-    include_tasks: "bootstrap_{{ _iter_bstrapper }}.yml"
-    when: _tmp_bootstrapper is falsy
-    loop: "{{ _tmp_supported_bstrapper }}"
-    loop_control:
-       loop_var: _iter_bstrapper
+  - block:
+
+        ##
+        ## optionally prepare environment for bootstrapping process, 
+        ## this might be necessary for proxies and such
+        ##
+      - set_fact:
+          _tmp_bootstrap_env: {}
+          _tmp_bootstrapper:
+          _tmp_supported_bstrapper:
+             - alpine
+             - debian
 
 
-  - ansible.builtin.assert:
-      that: _tmp_bootstrapper
-      fail_msg: >-
-         Could not bootstrap container image. Parent OS not recognized.
-         Seems not to be one of the supported:
-         {{ _tmp_supported_bstrapper | join(', ') }}
+      - set_fact:
+          _tmp_bootstrap_env: >- 
+            {{ _tmp_bootstrap_env | combine(_cur_dockimg.proxy.vars) }}
+        when: _cur_dockimg.proxy.vars is truthy
+
+
+      - name: container bootstrapping  ==>>  try {{ _iter_bstrapper }}
+        include_tasks: "bootstrap_{{ _iter_bstrapper }}.yml"
+        when: _tmp_bootstrapper is falsy
+        loop: "{{ _tmp_supported_bstrapper }}"
+        loop_control:
+           loop_var: _iter_bstrapper
+
+
+      - ansible.builtin.assert:
+          that: _tmp_bootstrapper
+          fail_msg: >-
+             Could not bootstrap container image. Parent OS not recognized.
+             Seems not to be one of the supported:
+             {{ _tmp_supported_bstrapper | join(', ') }}
+
+    when: _tmp_py_installed.rc != 0
 

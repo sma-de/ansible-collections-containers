@@ -35,6 +35,10 @@
         when: _dbimg_iter.value.auto_versioning.method_type == 'parent-image-command'
 
 
+#      - include_tasks: auto_versioning/methods/binary_from_url.yml
+#        when: _dbimg_iter.value.auto_versioning.method_type == 'binary-from-url'
+
+
       - ansible.builtin.assert:
           that:
             - _tmp_in_versions
