@@ -38,6 +38,7 @@ class PSetsFilter(FilterBase):
 
         tmp.update({
           'os_defaults': ([collections.abc.Mapping], {}),
+          'extra_packages': ([collections.abc.Mapping], {}),
         })
 
         return tmp
@@ -83,7 +84,8 @@ class PSetsFilter(FilterBase):
         if not isinstance(value, collections.abc.Mapping):
             raise AnsibleOptionsError("filter input must be a mapping")
 
-        packages = value['packages']
+        packages = copy.deepcopy(value['packages'])
+        packages.update(self.get_taskparam('extra_packages'))
         psets = []
 
         if not packages:
@@ -96,6 +98,9 @@ class PSetsFilter(FilterBase):
         psets.append(defaults)
 
         for (k, v) in packages.items():
+            v  = v or {}
+            v.setdefault('name', k)
+
             # find the correct pset for package
             tmp = self._get_matching_pset(v, psets, defaults)
 
