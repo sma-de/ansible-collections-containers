@@ -1,0 +1,25 @@
+---
+
+    # TODO: atm upstream github releases module only ever returns the latest version, but in general it would be usefule to return any release and allow some filtering on it
+    # TODO: module seems buggy, at list for ansible project latest_release does not really return latest release
+  - name: >-
+      obtain auto version from github releases
+      '{{ _dbimg_iter.value.auto_versioning.method_args.cfg.repo }}' 
+      ==>>  {{ _dbimg_iter.value.fullname }}
+    community.general.github_release: >-
+      {{ _dbimg_iter.value.auto_versioning.method_args.cfg }}
+    register: _tmp_autover_res
+
+
+  - debug:
+      var: _tmp_autover_res
+
+  - assert:
+      that: false
+      fail_msg: >-
+        TODO: properly implement github auto versioning
+
+  - set_fact:
+      _tmp_in_versions: >- 
+         {{ _tmp_in_versions + [_tmp_autover_res.tag] }}
+

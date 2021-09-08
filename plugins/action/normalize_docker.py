@@ -660,6 +660,10 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
     NORMER_CONFIG_PATH = ['auto_versioning']
 
     def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs, 
+          'method_args', DefaultSetterConstant(dict())
+        )
+
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
           DockConfNormImageAutoVerSCMBased(pluginref),
@@ -670,6 +674,40 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
     @property
     def config_path(self):
         return self.NORMER_CONFIG_PATH
+
+
+    def _norm_margs_parent_image_command(self, method_args):
+        pass ## noop atm
+
+    def _norm_margs_github_releases(self, method_args):
+        cfg = setdefault_none(method_args, 'cfg', {})
+        setdefault_none(cfg, 'action', 'latest_release')
+
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        mtype = my_subcfg.get('method_type', None)
+
+        if not mtype:
+            raise AnsibleOptionsError(
+               "You must set mandatory key 'method_type' when"\
+               " using auto versioning"
+            )
+
+        mtype_normed = mtype.replace('-', '_')
+        my_subcfg['method_type'] = mtype_normed
+
+        norm_args_fn = getattr(self, 
+           '_norm_margs_' + mtype_normed, None
+        )
+
+        if not norm_args_fn:
+            raise AnsibleOptionsError(
+               "Unsupported auto-versioning method"\
+               " type '{}'".format(mtype)
+            )
+
+        norm_args_fn(my_subcfg['method_args'])
+        return my_subcfg
 
 
 class DockConfNormImageAutoVerSCMBased(NormalizerBase):
