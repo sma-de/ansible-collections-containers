@@ -679,6 +679,18 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
     def _norm_margs_parent_image_command(self, method_args):
         pass ## noop atm
 
+
+    def _norm_margs_pypi_releases(self, method_args):
+        opts = setdefault_none(method_args, 'opts', {})
+        subfn_args = setdefault_none(opts, 'subfn_args', {})
+
+        subfn_args['force_list'] = True
+
+        ## note: using only the latest version for auto versioning 
+        ##   is actually a pretty senseable generic default I reckon
+        subfn_args.setdefault('subselect', -1)
+
+
     def _norm_margs_github_releases(self, method_args):
         cfg = setdefault_none(method_args, 'cfg', {})
         setdefault_none(cfg, 'action', 'latest_release')

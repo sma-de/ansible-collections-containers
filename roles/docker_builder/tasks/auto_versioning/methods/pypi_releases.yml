@@ -1,0 +1,12 @@
+---
+
+  - set_fact:
+      _tmp_in_versions: >- 
+         {{ _tmp_in_versions + (
+            q('smabot.base.pypi_meta', 
+                _dbimg_iter.value.auto_versioning.method_args.project, 
+                subfn='get_versions', 
+                **_dbimg_iter.value.auto_versioning.method_args.opts
+            ) | first) 
+         }}
+
