@@ -384,7 +384,6 @@ class DockConfNormImageDistroPackages(NormalizerBase):
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
           DockConfNormImagePackDefaults(pluginref),
-          DockConfNormImageDistroPackInst(pluginref),
         ]
 
         super(DockConfNormImageDistroPackages, self).__init__(pluginref, *args, **kwargs)
@@ -392,6 +391,14 @@ class DockConfNormImageDistroPackages(NormalizerBase):
     @property
     def config_path(self):
         return ['distro']
+
+    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
+        packs = setdefault_none(my_subcfg, 'packages', [])
+
+        if not isinstance(packs, list):
+            my_subcfg['packages'] = [packs]
+
+        return my_subcfg
 
 
 
@@ -415,7 +422,6 @@ class DockConfNormImagePipPackages(NormalizerBase):
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
           DockConfNormImagePackDefaults(pluginref),
-          DockConfNormImagePipPackInst(pluginref),
         ]
 
         super(DockConfNormImagePipPackages, self).__init__(pluginref, *args, **kwargs)
@@ -424,21 +430,15 @@ class DockConfNormImagePipPackages(NormalizerBase):
     def config_path(self):
         return ['pip']
 
+    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
+        my_subcfg['default_settings']['version_comparator'] = "=="
 
-class DockConfNormImagePackInst(NormalizerNamed):
+        packs = setdefault_none(my_subcfg, 'packages', [])
 
-    @property
-    def config_path(self):
-        return ['packages', SUBDICT_METAKEY_ANY]
+        if not isinstance(packs, list):
+            my_subcfg['packages'] = [packs]
 
-
-class DockConfNormImageDistroPackInst(DockConfNormImagePackInst):
-    pass
-
-
-class DockConfNormImagePipPackInst(DockConfNormImagePackInst):
-    pass
-
+        return my_subcfg
 
 
 class DockConfNormImageSCMBased(NormalizerBase):

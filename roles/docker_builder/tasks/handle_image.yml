@@ -250,7 +250,9 @@
 
       - name: pip package installs  ==>>  {{ _cur_dockimg.fullname }}
         ansible.builtin.pip: "{{ _iter_packinst }}" 
-        loop: "{{ _cur_dockimg.packages.pip | smabot.containers.to_psets }}"
+        loop: >-
+          {{ _cur_dockimg.packages.pip 
+           | smabot.containers.to_psets(auto_version=_autovcfg_iter) }}
         loop_control:
           loop_var: _iter_packinst
 

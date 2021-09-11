@@ -27,7 +27,7 @@
          }, extra_packages={
              'py3-pip': None,
              'py3-setuptools': None,
-         })
+         },auto_version=_autovcfg_iter)
       }}
     loop_control:
       loop_var: _iter_packinst

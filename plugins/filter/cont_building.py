@@ -17,6 +17,7 @@ from ansible.module_utils._text import to_text, to_native
 from ansible_collections.smabot.base.plugins.module_utils.plugins.plugin_base import MAGIC_ARGSPECKEY_META
 from ansible_collections.smabot.base.plugins.module_utils.plugins.filter_base import FilterBase
 
+from ansible_collections.smabot.base.plugins.module_utils.utils.dicting import merge_dicts
 from ansible_collections.smabot.base.plugins.module_utils.utils.utils import ansible_assert
 
 from ansible_collections.smabot.containers.plugins.module_utils.common import add_deco
@@ -39,6 +40,7 @@ class PSetsFilter(FilterBase):
         tmp.update({
           'os_defaults': ([collections.abc.Mapping], {}),
           'extra_packages': ([collections.abc.Mapping], {}),
+          'auto_version': ([collections.abc.Mapping], {}),
         })
 
         return tmp
@@ -85,7 +87,14 @@ class PSetsFilter(FilterBase):
             raise AnsibleOptionsError("filter input must be a mapping")
 
         packages = copy.deepcopy(value['packages'])
-        packages.update(self.get_taskparam('extra_packages'))
+
+        tmp = self.get_taskparam('extra_packages')
+        if tmp:
+            if not isinstance(tmp, list):
+                tmp = [tmp]
+
+            packages = tmp + packages
+
         psets = []
 
         if not packages:
@@ -93,19 +102,64 @@ class PSetsFilter(FilterBase):
             return psets
 
         defaults = copy.deepcopy(self.get_taskparam('os_defaults'))
-        defaults.update(copy.deepcopy(value['default_settings']))
+        merge_dicts(defaults, copy.deepcopy(value['default_settings']))
 
-        psets.append(defaults)
+        meta_defaults = {}
 
-        for (k, v) in packages.items():
-            v  = v or {}
-            v.setdefault('name', k)
+        for x in ['version_comparator']:
+            meta_defaults[x] = defaults.pop(x, None)
 
-            # find the correct pset for package
-            tmp = self._get_matching_pset(v, psets, defaults)
+        for ps in packages:
+            sub_psets = []
 
-            # add package to pset
-            tmp.setdefault('name', []).append(v['name'])
+            ps_defaults = copy.deepcopy(defaults)
+            tmp = ps.pop('_set_defaults_', None)
+
+            if tmp:
+                merge_dicts(ps_defaults, tmp)
+
+            sub_psets.append(ps_defaults)
+
+            for (k, v) in ps.items():
+                v  = v or {}
+                v.setdefault('name', k)
+
+                # handle packages marked as auto versioned
+                autov = v.get('auto_versioned', False)
+                if autov:
+                    tmp = self.get_taskparam('auto_version').get(
+                      'version_in', None
+                    )
+
+                    if not tmp:
+                        raise AnsibleOptionsError(
+                           "Package to install with name '{}' had auto"\
+                           " versioning flag set, but no auto version"\
+                           " was determined".format(v['name'])
+                        )
+
+                    v['version'] = tmp
+
+                # handle packages which are explicitly pinned to some version
+                pver = v.get('version', None)
+                if pver:
+                    vercompare = v.get('version_comparator', 
+                       meta_defaults['version_comparator'] or "="
+                    )
+
+                    v['name'] = "{}{}{}".format(v['name'], vercompare, pver)
+
+                # find the correct pset for package
+                tmp = self._get_matching_pset(v, sub_psets, defaults)
+
+                # add package to pset
+                tmp.setdefault('name', []).append(v['name'])
+
+            # finally make a flat list of all config defined psets 
+            # and sub_psets created by this method, but keep the 
+            # original config pset order and also dont mix 
+            # different sub_psets together
+            psets += sub_psets
 
         return psets
 
