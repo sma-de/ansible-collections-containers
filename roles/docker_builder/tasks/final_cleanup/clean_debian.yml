@@ -1,0 +1,13 @@
+---
+
+  # TODO: is there more senseable stuff
+
+  - name: auto clean os packages
+    ansible.builtin.apt:
+      autoclean: yes
+      autoremove: yes
+
+
+  - name: make sure apt package cache is empty
+    ansible.builtin.command: rm -rf /var/lib/apt/lists/*
+

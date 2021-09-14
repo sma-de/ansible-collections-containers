@@ -1,0 +1,21 @@
+---
+
+  # TODO: is there more senseable stuff to do here
+
+  - name: clear pip caches
+    ansible.builtin.command:
+      cmd: >-
+        {{ _pip_exe_iter }} cache purge
+    failed_when: false
+    loop:
+      - pip
+      - pip3
+      - python -m pip
+      - python3 -m pip
+    loop_control:
+      loop_var: _pip_exe_iter
+
+
+  - include_tasks: clean_debian.yml
+    when: ansible_os_family == "Debian"
+

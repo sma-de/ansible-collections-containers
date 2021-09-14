@@ -306,6 +306,8 @@
                ))
             }}
 
+## do final cleanup
+      - include_tasks: final_cleanup/main.yml
 
 ## do final meta data collection
       - set_fact:
