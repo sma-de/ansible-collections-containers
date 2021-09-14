@@ -6,7 +6,8 @@
 ##
 
   - set_fact:
-       _cur_dockimg: "{{ _dbimg_iter.value }}"
+      _cur_dockimg: "{{ _dbimg_iter.value }}"
+      _dbuild_meta: {}
 
 
   - name: determine build container name
@@ -305,6 +306,18 @@
                ))
             }}
 
+
+## do final meta data collection
+      - set_fact:
+          _dbuild_meta: >-
+            {{ _dbuild_meta | smabot.containers.combine_buildmeta(
+                  metacfg=docker_build.meta, imgcfg=_cur_dockimg,
+                  auto_versioning=_autovcfg_iter, ansible_facts=ansible_facts
+               )
+            }}
+        when: docker_build.meta.create
+
+
     ##
     ## switch ansible context into the docker builder container 
     ## by using the delegate mechanism (as using "hosts:" 
@@ -381,10 +394,6 @@
     when: not _build_tags
 
 
-  - set_fact:
-      _dbuild_meta: []
-
-
   - include_tasks: postbuild_tasks.yml
     loop: "{{ _build_tags }}"
     loop_control:
@@ -393,12 +402,9 @@
 
   - set_fact:
       _cur_image_meta: >-
-        {{ _cur_image_meta 
-         | combine({'builds': _dbuild_meta},
-             recursive=True, list_merge='append'
-           )
+        {{ _cur_image_meta | combine({'builds': [_dbuild_meta]},
+            recursive=True, list_merge='append')
         }}
-
     when: docker_build.meta.create
 
 

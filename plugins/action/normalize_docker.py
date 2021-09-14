@@ -209,6 +209,10 @@ class DockConfNormMeta(NormalizerBase):
           'exports', DefaultSetterConstant({})
         )
 
+        self._add_defaultsetter(kwargs, 'facts', 
+          DefaultSetterConstant(['distribution_version', 'os_family'])
+        )
+
         super(DockConfNormMeta, self).__init__(pluginref, *args, **kwargs)
 
     @property
@@ -373,8 +377,38 @@ class DockConfNormImagePackages(NormalizerBase):
         return my_subcfg
 
 
+class DockConfNormImageXPackBase(NormalizerBase):
 
-class DockConfNormImageDistroPackages(NormalizerBase):
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        packs = setdefault_none(my_subcfg, 'packages', [])
+    
+        if not isinstance(packs, list):
+            ## normalize to pset list
+            packs = [packs]
+            my_subcfg['packages'] = packs
+    
+        ## normalize single packages
+        pcfg = self.get_parentcfg(cfg, cfgpath_abs)
+        for ps in packs:
+            for k in ps:
+                if k[0] == '_':
+                    continue  # dont do magic underscore keys
+
+                v = ps[k] or {}
+                ps[k] = v
+
+                setdefault_none(v, 'name', k)
+
+                av = v.get('auto_versioned', False)
+
+                if av:
+                    v['ptype'] = self.config_path[-1]
+                    pcfg['auto_versioned'] = v
+    
+        return my_subcfg
+
+
+class DockConfNormImageDistroPackages(DockConfNormImageXPackBase):
 
     def __init__(self, pluginref, *args, **kwargs):
         self._add_defaultsetter(kwargs, 
@@ -392,15 +426,6 @@ class DockConfNormImageDistroPackages(NormalizerBase):
     def config_path(self):
         return ['distro']
 
-    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
-        packs = setdefault_none(my_subcfg, 'packages', [])
-
-        if not isinstance(packs, list):
-            my_subcfg['packages'] = [packs]
-
-        return my_subcfg
-
-
 
 class DockConfNormImagePackDefaults(NormalizerBase):
 
@@ -416,7 +441,7 @@ class DockConfNormImagePackDefaults(NormalizerBase):
         return ['default_settings']
 
 
-class DockConfNormImagePipPackages(NormalizerBase):
+class DockConfNormImagePipPackages(DockConfNormImageXPackBase):
 
     def __init__(self, pluginref, *args, **kwargs):
         subnorms = kwargs.setdefault('sub_normalizers', [])
@@ -432,12 +457,6 @@ class DockConfNormImagePipPackages(NormalizerBase):
 
     def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
         my_subcfg['default_settings']['version_comparator'] = "=="
-
-        packs = setdefault_none(my_subcfg, 'packages', [])
-
-        if not isinstance(packs, list):
-            my_subcfg['packages'] = [packs]
-
         return my_subcfg
 
 

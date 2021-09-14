@@ -29,6 +29,61 @@ display = Display()
 
 
 
+class CombineBuildMetaFilter(FilterBase):
+
+    FILTER_ID = 'combine_buildmeta'
+
+    @property
+    def argspec(self):
+        tmp = super(CombineBuildMetaFilter, self).argspec
+
+        tmp.update({
+          'metacfg': ([collections.abc.Mapping]),
+          'imgcfg': ([collections.abc.Mapping]),
+          'ansible_facts': ([collections.abc.Mapping]),
+          'auto_versioning': ([collections.abc.Mapping], {}),
+        })
+
+        return tmp
+
+
+    def run_specific(self, value):
+        if not isinstance(value, collections.abc.Mapping):
+            raise AnsibleOptionsError("filter input must be a mapping")
+
+        metacfg = self.get_taskparam('metacfg')
+        imgcfg = self.get_taskparam('imgcfg')
+
+        ## add select container facts to build meta
+        fact_keys = metacfg['facts']
+
+        if fact_keys:
+            ans_facts = self.get_taskparam('ansible_facts')
+            facts = {}
+
+            for k in fact_keys:
+                ## expect all keys to exist, otherwise error out
+                facts[k] = ans_facts[k]
+
+            value['facts'] = facts
+
+        ## add auto versioning settings to build meta
+        autov = self.get_taskparam('auto_versioning')
+        
+        if autov:
+            ## check if a package install is auto versionend, 
+            ##   if so add package info to meta
+            package = imgcfg['packages'].get('auto_versioned', None)
+
+            if package:
+                autov['package'] = package
+
+            value['auto_versioning'] = autov
+
+        return value
+
+
+
 class PSetsFilter(FilterBase):
 
     FILTER_ID = 'to_psets'
@@ -101,6 +156,7 @@ class PSetsFilter(FilterBase):
             # no packages configured, so psets are empty
             return psets
 
+        autov_setting = self.get_taskparam('auto_version')
         defaults = copy.deepcopy(self.get_taskparam('os_defaults'))
         merge_dicts(defaults, copy.deepcopy(value['default_settings']))
 
@@ -121,15 +177,13 @@ class PSetsFilter(FilterBase):
             sub_psets.append(ps_defaults)
 
             for (k, v) in ps.items():
-                v  = v or {}
+                v = v or {}
                 v.setdefault('name', k)
 
                 # handle packages marked as auto versioned
-                autov = v.get('auto_versioned', False)
-                if autov:
-                    tmp = self.get_taskparam('auto_version').get(
-                      'version_in', None
-                    )
+                is_autov = v.get('auto_versioned', False)
+                if is_autov:
+                    tmp = autov_setting.get('version_in', None)
 
                     if not tmp:
                         raise AnsibleOptionsError(
@@ -344,6 +398,7 @@ class FilterModule(object):
 
         tmp = [
            AppendContEnvFilter, 
+           CombineBuildMetaFilter, 
            DecoAddFilter, 
            DecoToEnvFilter, 
            DecoToLabelsFilter, 

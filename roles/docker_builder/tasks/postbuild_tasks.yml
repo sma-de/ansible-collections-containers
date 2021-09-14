@@ -10,5 +10,7 @@
 
   - set_fact:
      _dbuild_meta: >-
-        {{ _dbuild_meta + [{'tag': _btag_iter}] }}
+       {{ _dbuild_meta | combine({'tags': [_btag_iter]}, 
+             recursive=True, list_merge='append')
+       }}
 
