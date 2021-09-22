@@ -96,6 +96,7 @@ class PSetsFilter(FilterBase):
           'os_defaults': ([collections.abc.Mapping], {}),
           'extra_packages': ([collections.abc.Mapping], {}),
           'auto_version': ([collections.abc.Mapping], {}),
+          'grouped': ([bool], True),
         })
 
         return tmp
@@ -151,6 +152,7 @@ class PSetsFilter(FilterBase):
             packages = tmp + packages
 
         psets = []
+        ungrouped_psets = []
 
         if not packages:
             # no packages configured, so psets are empty
@@ -159,6 +161,11 @@ class PSetsFilter(FilterBase):
         autov_setting = self.get_taskparam('auto_version')
         defaults = copy.deepcopy(self.get_taskparam('os_defaults'))
         merge_dicts(defaults, copy.deepcopy(value['default_settings']))
+
+        # many package manager modules suppport handling multiple packages 
+        # at once (list), but some dont, which we will handle by making 
+        # each package basically its own pset
+        grouped = self.get_taskparam('grouped')
 
         meta_defaults = {}
 
@@ -194,6 +201,9 @@ class PSetsFilter(FilterBase):
 
                     v['version'] = tmp
 
+                # find the correct pset for package
+                tmp = self._get_matching_pset(v, sub_psets, defaults)
+
                 # handle packages which are explicitly pinned to some version
                 pver = v.get('version', None)
                 if pver:
@@ -201,19 +211,29 @@ class PSetsFilter(FilterBase):
                        meta_defaults['version_comparator'] or "="
                     )
 
-                    v['name'] = "{}{}{}".format(v['name'], vercompare, pver)
+                    if grouped:
+                        v['name'] = "{}{}{}".format(v['name'], vercompare, pver)
 
-                # find the correct pset for package
-                tmp = self._get_matching_pset(v, sub_psets, defaults)
+                if grouped:
+                    # add package to pset
+                    tmp.setdefault('name', []).append(v['name'])
+                else:
+                    tmp = copy.deepcopy(tmp)
+                    tmp['name'] = v['name']
 
-                # add package to pset
-                tmp.setdefault('name', []).append(v['name'])
+                    if pver:
+                        tmp['version'] = pver
+
+                    ungrouped_psets.append(tmp)
 
             # finally make a flat list of all config defined psets 
             # and sub_psets created by this method, but keep the 
             # original config pset order and also dont mix 
             # different sub_psets together
             psets += sub_psets
+
+        if not grouped:
+            psets = ungrouped_psets
 
         return psets
 

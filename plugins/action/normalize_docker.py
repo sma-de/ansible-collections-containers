@@ -365,6 +365,7 @@ class DockConfNormImagePackages(NormalizerBase):
         subnorms += [
           DockConfNormImageDistroPackages(pluginref),
           DockConfNormImagePipPackages(pluginref),
+          DockConfNormImageNpmPackages(pluginref),
         ]
 
         super(DockConfNormImagePackages, self).__init__(pluginref, *args, **kwargs)
@@ -457,6 +458,29 @@ class DockConfNormImagePipPackages(DockConfNormImageXPackBase):
 
     def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
         my_subcfg['default_settings']['version_comparator'] = "=="
+        return my_subcfg
+
+
+class DockConfNormImageNpmPackages(DockConfNormImageXPackBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockConfNormImagePackDefaults(pluginref),
+        ]
+
+        super(DockConfNormImageNpmPackages, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['npm']
+
+    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
+        ##my_subcfg['default_settings']['version_comparator'] = "=="
+        my_subcfg['default_settings'].update({
+            'global': True,
+        })
+
         return my_subcfg
 
 
