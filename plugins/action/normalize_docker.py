@@ -302,7 +302,23 @@ class DockConfNormImageInstance(NormalizerNamed):
         my_subcfg['owner'] = owner
         my_subcfg['fullname'] = owner + '/' + my_subcfg['shortname']
 
-##        my_subcfg.setdefault('packages', {}).setdefault()
+        pinfs = get_docker_parent_infos(self.pluginref, my_subcfg['parent'])
+
+        ##
+        ## note: if we want to keep cmd and entrypoint from parent
+        ##   on default it seems we must set it here explicitly as
+        ##   the original idea of simply omiting to set this leads
+        ##   to keeping the cmd and entrypoint values used during
+        ##   building
+        ##
+        setdefault_none(my_subcfg, 'docker_cmd',
+           pinfs['Config']['Cmd']
+        )
+
+        setdefault_none(my_subcfg, 'entrypoint',
+           pinfs['Config']['Entrypoint']
+        )
+
         return my_subcfg
 
     def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):

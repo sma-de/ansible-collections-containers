@@ -377,12 +377,12 @@
       ## TODO: complete keywords
       docker_keywords:
         ## 1:1 analogous to dockerfile statements with the same name, all optional
-        CMD: "{{ _cur_dockimg.docker_cmd | default(omit) }}"
-        ENTRYPOINT: "{{ _cur_dockimg.entrypoint | default(omit, True) }}"
+        CMD: "{{ _cur_dockimg.docker_cmd }}"
+        ENTRYPOINT: "{{ _cur_dockimg.entrypoint }}"
         ENV: "{{ _cur_dockimg.environment.static | default(omit, True) }}"
         EXPOSE: "{{ _cur_dockimg.expose | default(omit, True) }}"
         LABEL: "{{ _cur_image_labels }}"
-        USER: "{{ _cur_dockimg.docker_user | default(omit, True) }}"
+        USER: "{{ _cur_dockimg.docker_user }}"
         WORKDIR: "{{ _cur_dockimg.workdir | default(omit, True) }}"
 
 
