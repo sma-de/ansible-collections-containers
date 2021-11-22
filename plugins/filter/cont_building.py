@@ -8,6 +8,7 @@ ANSIBLE_METADATA = {
 
 import collections
 import copy
+import re
 
 from ansible.errors import AnsibleFilterError, AnsibleOptionsError
 from ansible.module_utils.six import string_types
@@ -27,6 +28,62 @@ from ansible.utils.display import Display
 
 display = Display()
 
+
+
+class AutoVersionPostProc(FilterBase):
+
+    FILTER_ID = 'autover_postproc'
+
+    @property
+    def argspec(self):
+        tmp = super(AutoVersionPostProc, self).argspec
+
+        cgrp_spec = {
+          'regex': (list(string_types), ''),
+          'version': (list(string_types), ''),
+        }
+
+        tmp.update({
+          'capture_group': ([collections.abc.Mapping], {}, cgrp_spec),
+        })
+
+        return tmp
+
+
+    def run_specific(self, value):
+        if not isinstance(value, string_types):
+            raise AnsibleOptionsError("expects a string as filter input")
+
+        cgrp = self.get_taskparam('capture_group')
+        cgrp_re = cgrp['regex']
+        cgrp_ver = cgrp['version']
+
+        if cgrp_re:
+            # do capture_group post processing: regex search input
+            # string for capture_group and extract matched version
+            # (sub) string from it
+
+            tmp = cgrp_re.format(VERSION=r'(?P<version>{})'.format(cgrp_ver))
+
+            errpfx = \
+               "capture group must match exactly once, but for"\
+               " given parameters regex => '{}' and version => '{}'"\
+               " combined into the following final regex pattern"\
+               " => '{}'".format(cgrp_re, cgrp_ver, tmp)
+
+            found_match = None
+            for m in re.finditer(tmp, value, flags=re.MULTILINE):
+                if found_match:
+                    raise AnsibleOptionsError(errpxf + " more than one match was found")
+
+                found_match = m.group('version')
+
+            if not found_match:
+                raise AnsibleOptionsError(errpxf + " no match was found")
+
+            value = found_match
+
+        return value
 
 
 class CombineBuildMetaFilter(FilterBase):
@@ -417,12 +474,13 @@ class FilterModule(object):
         res = {}
 
         tmp = [
-           AppendContEnvFilter, 
-           CombineBuildMetaFilter, 
-           DecoAddFilter, 
-           DecoToEnvFilter, 
-           DecoToLabelsFilter, 
-           PSetsFilter
+           AppendContEnvFilter,
+           AutoVersionPostProc,
+           CombineBuildMetaFilter,
+           DecoAddFilter,
+           DecoToEnvFilter,
+           DecoToLabelsFilter,
+           PSetsFilter,
         ]
 
         for f in tmp:

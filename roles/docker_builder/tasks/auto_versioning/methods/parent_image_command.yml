@@ -46,5 +46,10 @@
 
   - set_fact:
       _tmp_in_versions: >- 
-         {{ _tmp_in_versions + [_tmp_autover_res.stdout] }}
+         {{ _tmp_in_versions + [
+              _tmp_autover_res.stdout | smabot.containers.autover_postproc(
+                 **_dbimg_iter.value.auto_versioning.method_args.postproc
+              )
+           ]
+         }}
 

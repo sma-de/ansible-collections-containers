@@ -4,6 +4,7 @@ __metaclass__ = type
 
 
 import abc
+import collections
 import copy
 import os 
 import re
@@ -714,13 +715,24 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
 
         super(DockConfNormImageAutoVersioning, self).__init__(pluginref, *args, **kwargs)
 
+
     @property
     def config_path(self):
         return self.NORMER_CONFIG_PATH
 
 
     def _norm_margs_parent_image_command(self, method_args):
-        pass ## noop atm
+        pp = setdefault_none(method_args, 'postproc', {})
+
+        cgrp = pp.get('capture_group', None)
+
+        if cgrp:
+            if not isinstance(cgrp, collections.abc.Mapping):
+                cgrp = {'regex': cgrp}
+
+            setdefault_none(cgrp, 'version', r'(\d+\.?)+')
+
+            pp['capture_group'] = cgrp
 
 
     def _norm_margs_pypi_releases(self, method_args):
