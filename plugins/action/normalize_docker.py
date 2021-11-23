@@ -311,8 +311,15 @@ class DockConfNormImageInstance(NormalizerNamed):
         ##   to keeping the cmd and entrypoint values used during
         ##   building
         ##
+        ## note.2: explicitly force unsetting CMD and ENTRYPOINT
+        ##   after it was once set is simply not possible in docker
+        ##   in general (atm), so when for upstream these fields are
+        ##   unset / null we get the settings during build again, this
+        ##   is ok-ish for entrypoint because this is /bin/sh, but we
+        ##   should set a more senseable default
+        ##
         setdefault_none(my_subcfg, 'docker_cmd',
-           pinfs['Config']['Cmd']
+           pinfs['Config']['Cmd'] or ["sh"]
         )
 
         setdefault_none(my_subcfg, 'entrypoint',
