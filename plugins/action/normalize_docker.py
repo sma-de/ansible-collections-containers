@@ -7,6 +7,7 @@ import abc
 import collections
 import copy
 import os 
+import pathlib
 import re
 
 from ansible.errors import AnsibleOptionsError
@@ -253,7 +254,6 @@ class DockConfNormImageOwner(NormalizerBase):
         return [SUBDICT_METAKEY_ANY]
 
 
-
 class DockConfNormImageInstance(NormalizerNamed):
 
     def __init__(self, pluginref, *args, **kwargs):
@@ -279,6 +279,7 @@ class DockConfNormImageInstance(NormalizerNamed):
           ##   actually must interact with the ecosystem in question 
           ##   for doing proper proxy normalizing for it)
           ##
+          DockConfNormImageInstallMeta(pluginref),
           ConfigNormerProxy(pluginref, force_ecosystems=True),
           (DockConfNormImageSCMBased, True), # make this lazy initialized (only set it, when it already exists in input cfg)
           (DockConfNormImageAutoVersioning, True), # make this lazy initialized
@@ -382,6 +383,25 @@ class DockConfNormImageInstance(NormalizerNamed):
 
 
 
+class DockConfNormImageInstallMeta(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'basedir', DefaultSetterConstant('/usr/local/share/contimg')
+        )
+
+        self._add_defaultsetter(kwargs,
+          'keep', DefaultSetterConstant(True)
+        )
+
+        super(DockConfNormImageInstallMeta, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['install_meta']
+
+
+
 class DockConfNormImagePackages(NormalizerBase):
 
     def __init__(self, pluginref, *args, **kwargs):
@@ -472,6 +492,7 @@ class DockConfNormImagePipPackages(DockConfNormImageXPackBase):
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
           DockConfNormImagePackDefaults(pluginref),
+          DockConfNormImagePipRequirements(pluginref),
         ]
 
         super(DockConfNormImagePipPackages, self).__init__(pluginref, *args, **kwargs)
@@ -482,6 +503,74 @@ class DockConfNormImagePipPackages(DockConfNormImageXPackBase):
 
     def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
         my_subcfg['default_settings']['version_comparator'] = "=="
+        return my_subcfg
+
+
+
+class DockConfNormImagePipRequirements(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockConfNormImagePipRequireSources(pluginref),
+        ]
+
+        super(DockConfNormImagePipRequirements, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['requirements']
+
+
+
+class DockConfNormImagePipRequireSources(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockConfNormImagePipRequireSrcInst(pluginref),
+        ]
+
+        super(DockConfNormImagePipRequireSources, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['sources']
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        # define default reqfile sources
+        my_subcfg.setdefault(
+          'package_srcdefs/python/', {'optional': True}
+        )
+
+        return my_subcfg
+
+
+
+class DockConfNormImagePipRequireSrcInst(NormalizerNamed):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'optional', DefaultSetterConstant(False)
+        )
+
+        super(DockConfNormImagePipRequireSrcInst, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return [SUBDICT_METAKEY_ANY]
+
+    @property
+    def name_key(self):
+        return 'src'
+
+    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
+        # make relative source paths absolute to role_dir
+        tmp = pathlib.Path(my_subcfg['src'])
+        if not tmp.is_absolute():
+            pcfg = self.get_parentcfg(cfg, cfgpath_abs, 5)
+            my_subcfg['src'] = str(pathlib.Path(pcfg['role_dir']) / tmp)
+
         return my_subcfg
 
 

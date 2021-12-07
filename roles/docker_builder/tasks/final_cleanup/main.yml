@@ -19,3 +19,10 @@
   - include_tasks: clean_debian.yml
     when: ansible_os_family == "Debian"
 
+
+  - name: clear image install meta dir
+    ansible.builtin.file:
+      path: "{{ _cur_dockimg.install_meta.basedir }}"
+      state: absent
+    when: not _cur_dockimg.install_meta.keep
+

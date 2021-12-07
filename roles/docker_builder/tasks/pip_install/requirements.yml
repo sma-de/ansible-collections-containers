@@ -1,0 +1,18 @@
+---
+
+  - set_fact:
+      _pip_sources: []
+
+
+  - include_tasks: collect_pip_sources.yml
+    loop: >-
+      {{ _cur_dockimg.packages.pip.requirements.sources | dict2items() }}
+    loop_control:
+      loop_var: _pipreq_iter
+
+
+  - include_tasks: apply_pip_requirements.yml
+    loop: "{{ _pip_sources }}"
+    loop_control:
+      loop_var: _pipreq_iter
+

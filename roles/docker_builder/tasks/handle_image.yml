@@ -259,6 +259,12 @@
         loop_control:
           loop_var: _iter_packinst
 
+
+      - name: handle optional pip requirements files  ==>>  {{ _cur_dockimg.fullname }}
+        include_tasks: pip_install/requirements.yml
+        when: _cur_dockimg.packages.pip.requirements.sources
+
+
       - name: npm package installs  ==>>  {{ _cur_dockimg.fullname }}
         community.general.npm: "{{ _iter_packinst }}"
         loop: >-

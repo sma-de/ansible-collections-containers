@@ -1,0 +1,25 @@
+---
+
+  - set_fact:
+      _tmp_dest: >-
+        {{ (_cur_dockimg.install_meta.basedir, 'python', 
+            'requirements', (_pipreq_iter | basename))
+          | path_join }}
+
+
+  - name: assure parent dir on target exists  ==>>  {{ _pipreq_iter }}
+    ansible.builtin.file:
+      path: "{{ _tmp_dest | dirname }}"
+      state: directory
+
+
+  - name: copy requirements file to target  ==>>  {{ _pipreq_iter }}
+    ansible.builtin.copy:
+      src: "{{ _pipreq_iter }}"
+      dest: "{{ _tmp_dest }}"
+
+
+  - name: apply pip requirements to target  ==>>  {{ _pipreq_iter }}
+    ansible.builtin.pip:
+      requirements: "{{ _tmp_dest }}"
+
