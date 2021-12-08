@@ -422,9 +422,20 @@ class DockConfNormImagePackages(NormalizerBase):
         return my_subcfg
 
 
+
 class DockConfNormImageXPackBase(NormalizerBase):
 
-    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockConfNormImagePackageBundlesBase(pluginref),
+        ]
+
+        super(DockConfNormImageXPackBase, self).__init__(pluginref, *args, **kwargs)
+
+
+    ##def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
         packs = setdefault_none(my_subcfg, 'packages', [])
     
         if not isinstance(packs, list):
@@ -451,6 +462,48 @@ class DockConfNormImageXPackBase(NormalizerBase):
                     pcfg['auto_versioned'] = v
     
         return my_subcfg
+
+
+
+class DockConfNormImagePackageBundlesBase(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        super(DockConfNormImagePackageBundlesBase, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['bundles']
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        # move any defined and enabled bundle to packages
+        pcfg = self.get_parentcfg(cfg, cfgpath_abs)
+        packages = setdefault_none(pcfg, 'packages', {})
+
+        enable_list = my_subcfg.get('enable', [])
+        disable_list = my_subcfg.get('disable', [])
+
+        for (bid, bcfg) in my_subcfg.get('bundles', {}).items():
+
+            ## check if bundle is in enable / disable short form
+            ## list (disable has higher prio than enable)
+            if bid in disable_list:
+                bcfg['enable'] = False
+            elif bid in enable_list:
+                bcfg['enable'] = True
+
+            # skip any bundle not enabled
+            if not bcfg.get('enable', False): continue
+
+            for (k, v) in bcfg['packages'].items():
+                # merge bundle packages with image package list, any
+                # option explicitly set in package list has higher
+                # prio than bundle settings
+                merge_dicts(setdefault_none(packages, k, {}),
+                   v, strats_fallback=['use_existing']
+                )
+
+        return my_subcfg
+
 
 
 class DockConfNormImageDistroPackages(DockConfNormImageXPackBase):
