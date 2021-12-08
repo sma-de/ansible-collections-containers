@@ -16,7 +16,9 @@
       standard distro package installs / removes (fallback) 
        ==>>  {{ _cur_dockimg.fullname }}
     ansible.builtin.package: "{{ _iter_packinst }}"
-    loop: "{{ _cur_dockimg.packages.distro | smabot.containers.to_psets }}"
+    loop: >-
+      {{ _cur_dockimg.packages.distro
+       | smabot.containers.to_psets(os_family=ansible_os_family) }}
     loop_control:
       loop_var: _iter_packinst
     when: _tmp_pinst_handled is falsy

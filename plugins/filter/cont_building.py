@@ -150,6 +150,7 @@ class PSetsFilter(FilterBase):
         tmp = super(PSetsFilter, self).argspec
 
         tmp.update({
+          'os_family': (list(string_types), ''),
           'os_defaults': ([collections.abc.Mapping], {}),
           'extra_packages': ([collections.abc.Mapping], {}),
           'auto_version': ([collections.abc.Mapping], {}),
@@ -215,6 +216,7 @@ class PSetsFilter(FilterBase):
             # no packages configured, so psets are empty
             return psets
 
+        os_family = self.get_taskparam('os_family')
         autov_setting = self.get_taskparam('auto_version')
         defaults = copy.deepcopy(self.get_taskparam('os_defaults'))
         merge_dicts(defaults, copy.deepcopy(value['default_settings']))
@@ -243,6 +245,15 @@ class PSetsFilter(FilterBase):
             for (k, v) in ps.items():
                 v = v or {}
                 v.setdefault('name', k)
+
+                if os_family:
+                    # check for os specific overwrite keys
+                    os_overwrites = v.get('os_overwrites', {}).get(
+                      os_family.lower(), None
+                    )
+
+                    if os_overwrites:
+                        merge_dicts(v, os_overwrites)
 
                 # handle packages marked as auto versioned
                 is_autov = v.get('auto_versioned', False)

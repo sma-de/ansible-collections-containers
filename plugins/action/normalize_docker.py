@@ -434,15 +434,18 @@ class DockConfNormImageXPackBase(NormalizerBase):
         super(DockConfNormImageXPackBase, self).__init__(pluginref, *args, **kwargs)
 
 
-    ##def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
     def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
         packs = setdefault_none(my_subcfg, 'packages', [])
-    
+
+        if not packs:
+            packs = []
+            my_subcfg['packages'] = packs
+
         if not isinstance(packs, list):
             ## normalize to pset list
             packs = [packs]
             my_subcfg['packages'] = packs
-    
+
         ## normalize single packages
         pcfg = self.get_parentcfg(cfg, cfgpath_abs)
         for ps in packs:
@@ -478,6 +481,10 @@ class DockConfNormImagePackageBundlesBase(NormalizerBase):
         # move any defined and enabled bundle to packages
         pcfg = self.get_parentcfg(cfg, cfgpath_abs)
         packages = setdefault_none(pcfg, 'packages', {})
+
+        if isinstance(packages, list):
+            # TODO: do we need more control where to add bundles when user explicitly specified psets
+            packages = packages[-1]
 
         enable_list = my_subcfg.get('enable', [])
         disable_list = my_subcfg.get('disable', [])
@@ -555,6 +562,10 @@ class DockConfNormImagePipPackages(DockConfNormImageXPackBase):
         return ['pip']
 
     def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
+        super(DockConfNormImagePipPackages, self)._handle_specifics_postsub(
+            cfg, my_subcfg, cfgpath_abs
+        )
+
         my_subcfg['default_settings']['version_comparator'] = "=="
         return my_subcfg
 
@@ -642,9 +653,13 @@ class DockConfNormImageNpmPackages(DockConfNormImageXPackBase):
         return ['npm']
 
     def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
+        super(DockConfNormImageNpmPackages, self)._handle_specifics_postsub(
+            cfg, my_subcfg, cfgpath_abs
+        )
+
         ##my_subcfg['default_settings']['version_comparator'] = "=="
         my_subcfg['default_settings'].update({
-            'global': True,
+           'global': True,
         })
 
         return my_subcfg

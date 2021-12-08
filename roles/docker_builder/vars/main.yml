@@ -43,6 +43,8 @@
                     python:
                       packages:
                         python3:
-                        ##py3-pip: ## name for alpine
-                        python3-pip: ## name for debian
+                        python3-pip:
+                          os_overwrites:
+                            alpine:
+                              name: py3-pip
 
