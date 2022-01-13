@@ -13,10 +13,10 @@ import re
 from ansible.errors import AnsibleOptionsError
 
 from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.base import \
-  ConfigNormalizerBaseMerger, \
-  NormalizerBase, \
-  NormalizerNamed, \
-  DefaultSetterConstant, \
+  ConfigNormalizerBaseMerger,\
+  NormalizerBase,\
+  NormalizerNamed,\
+  DefaultSetterConstant,\
   SIMPLEKEY_IGNORE_VAL
 
 from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.proxy import ConfigNormerProxy
@@ -410,6 +410,7 @@ class DockConfNormImagePackages(NormalizerBase):
           DockConfNormImageDistroPackages(pluginref),
           DockConfNormImagePipPackages(pluginref),
           DockConfNormImageNpmPackages(pluginref),
+          DockConfNormImageMavenPackages(pluginref),
         ]
 
         super(DockConfNormImagePackages, self).__init__(pluginref, *args, **kwargs)
@@ -433,6 +434,9 @@ class DockConfNormImageXPackBase(NormalizerBase):
 
         super(DockConfNormImageXPackBase, self).__init__(pluginref, *args, **kwargs)
 
+
+    def _norm_single_pack_ex(self, cfg, my_subcfg, cfgpath_abs, p):
+        pass
 
     def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
         packs = setdefault_none(my_subcfg, 'packages', [])
@@ -463,7 +467,9 @@ class DockConfNormImageXPackBase(NormalizerBase):
                 if av:
                     v['ptype'] = self.config_path[-1]
                     pcfg['auto_versioned'] = v
-    
+
+                self._norm_single_pack_ex(cfg, my_subcfg, cfgpath_abs, v)
+
         return my_subcfg
 
 
@@ -534,9 +540,9 @@ class DockConfNormImageDistroPackages(DockConfNormImageXPackBase):
 
 class DockConfNormImagePackDefaults(NormalizerBase):
 
-    def __init__(self, pluginref, *args, **kwargs):
-        self._add_defaultsetter(kwargs, 
-          'state', DefaultSetterConstant('latest')
+    def __init__(self, pluginref, *args, default_state=None, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'state', DefaultSetterConstant(default_state or 'latest')
         )
 
         super(DockConfNormImagePackDefaults, self).__init__(pluginref, *args, **kwargs)
@@ -544,6 +550,26 @@ class DockConfNormImagePackDefaults(NormalizerBase):
     @property
     def config_path(self):
         return ['default_settings']
+
+
+class DockConfNormImagePackDefaultsMaven(DockConfNormImagePackDefaults):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'class_joiner', DefaultSetterConstant('-')
+        )
+
+        self._add_defaultsetter(kwargs,
+          'config', DefaultSetterConstant({})
+        )
+
+        super(DockConfNormImagePackDefaultsMaven, self).__init__(
+          pluginref, *args, default_state='present', **kwargs
+        )
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        setdefault_none(my_subcfg['config'], 'checksum_alg', 'sha1')
+        return my_subcfg
 
 
 class DockConfNormImagePipPackages(DockConfNormImageXPackBase):
@@ -636,6 +662,51 @@ class DockConfNormImagePipRequireSrcInst(NormalizerNamed):
             my_subcfg['src'] = str(pathlib.Path(pcfg['role_dir']) / tmp)
 
         return my_subcfg
+
+
+class DockConfNormImageMavenPackages(DockConfNormImageXPackBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockConfNormImageMavenSourcesBase(pluginref),
+          DockConfNormImagePackDefaultsMaven(pluginref),
+        ]
+
+        super(DockConfNormImageMavenPackages, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['maven']
+
+    def _norm_single_pack_ex(self, cfg, my_subcfg, cfgpath_abs, p):
+        coords = setdefault_none(p, 'coordinates', {})
+
+        setdefault_none(coords, 'aid', p['name'])
+        setdefault_none(coords, 'ver', p['version'])
+
+        dest = setdefault_none(p, 'destination', {})
+        dstpath = dest['path']
+        dest['singlefile'] = dstpath[-1] != '/'
+
+        csums = setdefault_none(p, 'checksums', {})
+
+        for k in csums:
+            v = csums[k]
+
+            if not isinstance(v, collections.abc.Mapping):
+                # if not a mapping assume string for expected hash sum
+                v = { 'sum': v }
+
+            csums[k] = v
+
+
+class DockConfNormImageMavenSourcesBase(NormalizerBase):
+
+    @property
+    def config_path(self):
+        return ['sources']
+
 
 
 class DockConfNormImageNpmPackages(DockConfNormImageXPackBase):

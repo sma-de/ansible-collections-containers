@@ -154,7 +154,7 @@
 
 ## do standard package install
       - name: standard distro package installs  ==>>  {{ _cur_dockimg.fullname }}
-        include_tasks: package_install/main.yml
+        include_tasks: packages/distro/main.yml
 
 
 # handle user accounts
@@ -261,7 +261,7 @@
 
 
       - name: handle optional pip requirements files  ==>>  {{ _cur_dockimg.fullname }}
-        include_tasks: pip_install/requirements.yml
+        include_tasks: packages/pip/requirements.yml
         when: _cur_dockimg.packages.pip.requirements.sources
 
 
@@ -274,6 +274,19 @@
              ) }}
         loop_control:
           loop_var: _iter_packinst
+
+
+      - name: handle optional maven package / artifacts installs  ==>>  {{ _cur_dockimg.fullname }}
+        include_tasks: packages/maven/main.yml
+        loop: >-
+          {{ _cur_dockimg.packages.maven
+           | smabot.containers.to_psets(
+                auto_version=_autovcfg_iter, grouped=False,
+                pkg_convfn='maven'
+             ) }}
+        loop_control:
+          loop_var: _iter_packinst
+
 
 ## do steps postpackage
       - name: handle custom post package install steps

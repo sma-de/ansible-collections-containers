@@ -1,0 +1,112 @@
+---
+
+    ##
+    ## TODO: technically it would be cleaner to remove this again at the end, but is it really worth the effort??
+    ##
+  - name: >-
+      make sure target system is prepared for maven module
+       ==>>  {{ _cur_dockimg.fullname }}
+    ansible.builtin.pip:
+      name: lxml
+
+  - name: >-
+      get maven artifact '{{ _iter_packinst.name }}'
+       ==>>  {{ _cur_dockimg.fullname }}
+    community.general.maven_artifact: "{{ _iter_packinst.config }}"
+    register: _tmp_last_mvn_artifact_status
+
+
+    ## if provided compare checksums given by pkg cfg
+  - include_tasks: do_checksums.yml
+    loop: >-
+      {{ _iter_packinst.checksums | dict2items() }}
+    loop_control:
+      loop_var: _checksums_iter
+    vars:
+      checksum_params:
+        default_file: "{{ _tmp_last_mvn_artifact_status.dest }}"
+
+
+    ## handle unpacking when requested
+  - block:
+
+        ## unpack archive according to config
+      - set_fact:
+          _tmp_unarchive_args: >-
+            {{ dict() | combine(_iter_packinst.destination.config,
+                 {  'src': _tmp_last_mvn_artifact_status.dest,
+                   'dest': _iter_packinst.destination.path,
+                   'remote_src': true
+                 }, recursive=True, list_merge='append')
+            }}
+
+
+      - block:
+
+            # create dir for temporary holding unarchived content
+          - ansible.builtin.tempfile:
+              state: directory
+            register: _tmp_unpack_dir
+
+          - set_fact:
+              _tmp_unarchive_args: >-
+                {{ _tmp_unarchive_args
+                 | combine({ 'dest': _tmp_unpack_dir.path }) }}
+
+        when: _iter_packinst.destination.singlefile
+
+
+      - name: >-
+          unpack maven artifact '{{ _iter_packinst.name }}'
+           ==>>  {{ _cur_dockimg.fullname }}
+        ansible.builtin.unarchive: "{{ _tmp_unarchive_args }}"
+
+
+      - name: delete maven artifact file
+        ansible.builtin.file:
+          path: "{{ _tmp_last_mvn_artifact_status.dest }}"
+          state: absent
+
+
+      - block:
+
+          # get content of tmp unpack dir
+          - ansible.builtin.find:
+              paths: "{{ _tmp_unpack_dir.path }}"
+              recurse: yes
+            register: _tmp_unarchive_content
+
+          # check that it contains just a single file
+          - ansible.builtin.assert:
+              that:
+                - _tmp_unarchive_content.matched == 1
+              fail_msg: >-
+                As running maven artifact unpacking in single file mode
+                expected exactly one file in maven archive, but
+                got: {{ _tmp_unarchive_content.matched }}
+
+          # move that file to final destination
+          - ansible.builtin.command: >-
+              mv '{{ (_tmp_unarchive_content.files | first).path }}'
+                 '{{ _iter_packinst.destination.path }}'
+
+          # remove tmp unpack dir
+          - ansible.builtin.file:
+              path: "{{ _tmp_unpack_dir.path }}"
+              state: absent
+
+        when: _iter_packinst.destination.singlefile
+
+
+        ## test unpacked checksum
+      - include_tasks: do_checksums.yml
+        loop: >-
+          {{ _iter_packinst.destination.unpacking.checksums | dict2items() }}
+        loop_control:
+          loop_var: _checksums_iter
+        vars:
+          checksum_params:
+            default_file: "{{ _iter_packinst.destination.path }}"
+
+    when: _iter_packinst.destination.unpacking
+

@@ -1,0 +1,34 @@
+---
+
+##  - name: show final maven artifact description
+##    debug:
+##      var: _iter_packinst
+
+  - set_fact:
+      _skip_mvn_artifact: False
+
+    ## if unpacking is happening and checksums are defined
+    ## for unpacked content check first if target unpacked (reference)
+    ## file exists already and if the checksum matches, in that case
+    ## we can skip this whole thing as a no-changer
+  - block:
+
+      - include_tasks: do_checksums.yml
+        loop: >-
+          {{ (_iter_packinst.destination.unpacking.checksums | dict2items())[:1] }}
+        loop_control:
+          loop_var: _checksums_iter
+        vars:
+          checksum_params:
+            default_file:
+            optional: true
+            compare_resvar: _skip_mvn_artifact
+
+    when: >-
+      _iter_packinst.destination.unpacking
+      and _iter_packinst.destination.unpacking.checksums
+
+
+  - include_tasks: install_artifact.yml
+    when: not _skip_mvn_artifact
+

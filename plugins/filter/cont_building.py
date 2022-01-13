@@ -9,6 +9,7 @@ ANSIBLE_METADATA = {
 import collections
 import copy
 import re
+import os
 
 from ansible.errors import AnsibleFilterError, AnsibleOptionsError
 from ansible.module_utils.six import string_types
@@ -18,7 +19,7 @@ from ansible.module_utils._text import to_text, to_native
 from ansible_collections.smabot.base.plugins.module_utils.plugins.plugin_base import MAGIC_ARGSPECKEY_META
 from ansible_collections.smabot.base.plugins.module_utils.plugins.filter_base import FilterBase
 
-from ansible_collections.smabot.base.plugins.module_utils.utils.dicting import merge_dicts
+from ansible_collections.smabot.base.plugins.module_utils.utils.dicting import merge_dicts, setdefault_none
 from ansible_collections.smabot.base.plugins.module_utils.utils.utils import ansible_assert
 
 from ansible_collections.smabot.containers.plugins.module_utils.common import add_deco
@@ -155,7 +156,96 @@ class PSetsFilter(FilterBase):
           'extra_packages': ([collections.abc.Mapping], {}),
           'auto_version': ([collections.abc.Mapping], {}),
           'grouped': ([bool], True),
+          'pkg_convfn': (list(string_types), '', ['', 'maven']),
         })
+
+        return tmp
+
+
+    def _package_conv_maven(self, package,
+        defaults=None, grouped=False, base_map=None
+    ):
+        tmp = copy.deepcopy(defaults)
+        merge_dicts(tmp, copy.deepcopy(package))
+
+        # fill in sources key list with sources info dicts
+        p_sources = []
+        for sk in tmp['sources']:
+            p_sources.append(base_map['sources'][sk])
+
+        tmp['sources'] = p_sources
+
+        # note: atm simply hardcode first source
+        # TODO: support multiple sources trying one after another if first one fails
+        active_src = p_sources[0]
+
+        # apply source defaults to this package
+        tmp = merge_dicts(
+          copy.deepcopy(active_src.get('defaults', {})), tmp
+        )
+
+        # this dict is passed 1:1 to maven ansible module
+        pcfg = setdefault_none(tmp, 'config', {})
+
+        pcfg['state'] = tmp['state']
+        pcfg['repository_url'] = active_src['url']
+
+        # handle maven download part
+        mvn_coords = tmp['coordinates']
+
+        pcfg['artifact_id'] = mvn_coords['aid']
+        pcfg[    'version'] = tmp.get('version', None)
+        pcfg[  'extension'] = mvn_coords.get('type', None)
+
+        gid = mvn_coords.get('gid', None)
+
+        if gid:
+            if isinstance(gid, list):
+                gid = '.'.join(gid)
+
+            pcfg['group_id'] = gid
+
+        clss = mvn_coords.get('class', None)
+
+        if clss:
+            if isinstance(clss, list):
+                clss = tmp['class_joiner'].join(clss)
+
+            pcfg['classifier'] = clss
+
+        # handle remote system destination part
+        pdst = tmp['destination']
+        dest_path = pdst['path']
+
+        merge_dicts(pcfg, pdst.get('config', {}))
+
+        if pdst['singlefile']:
+            pcfg['dest'] = os.path.dirname(dest_path)
+        else:
+            pcfg['dest'] = dest_path
+
+        unpack_cfg = setdefault_none(pdst, 'unpacking', False)
+
+        if isinstance(unpack_cfg, collections.abc.Mapping):
+            csums = setdefault_none(unpack_cfg, 'checksums', {})
+            for k in csums:
+                v = csums[k]
+
+                if not isinstance(v, collections.abc.Mapping):
+                    v = { 'sum': v }
+
+                if not pdst['singlefile']:
+                    cs_file = v.get('file', None)
+                    ansible_assert(cs_file,
+                       "For checking checksums after unpacking a"\
+                       " reference filename must be provided when"\
+                       " destination path is a directory instead"\
+                       " of a complete filepath: {}".format(tmp['name'])
+                    )
+
+                    v['file'] = os.path.join(dest_path, cs_file)
+
+                csums[k] = v
 
         return tmp
 
@@ -172,7 +262,7 @@ class PSetsFilter(FilterBase):
         for ps in psets:
             matches = True
 
-            for (k, v) in p_modopts:
+            for (k, v) in p_modopts.items():
                 if k not in ps:
                     # for pset purposes, a non set key counts as mismatch
                     matches = False
@@ -201,6 +291,7 @@ class PSetsFilter(FilterBase):
             raise AnsibleOptionsError("filter input must be a mapping")
 
         packages = copy.deepcopy(value['packages'])
+        pconv_fn = self.get_taskparam('pkg_convfn')
 
         tmp = self.get_taskparam('extra_packages')
         if tmp:
@@ -269,30 +360,42 @@ class PSetsFilter(FilterBase):
 
                     v['version'] = tmp
 
-                # find the correct pset for package
-                tmp = self._get_matching_pset(v, sub_psets, defaults)
-
-                # handle packages which are explicitly pinned to some version
-                pver = v.get('version', None)
-                if pver:
-                    vercompare = v.get('version_comparator', 
-                       meta_defaults['version_comparator'] or "="
+                # run type specific package conv fn
+                if pconv_fn:
+                    assert not grouped
+                    ungrouped_psets.append(
+                      getattr(self, '_package_conv_' + pconv_fn)(
+                        v, defaults=defaults, grouped=grouped, base_map=value
+                      )
                     )
 
-                    if grouped:
-                        v['name'] = "{}{}{}".format(v['name'], vercompare, pver)
-
-                if grouped:
-                    # add package to pset
-                    tmp.setdefault('name', []).append(v['name'])
                 else:
-                    tmp = copy.deepcopy(tmp)
-                    tmp['name'] = v['name']
+                    # find the correct pset for package
+                    tmp = self._get_matching_pset(v, sub_psets, defaults)
 
-                    if pver:
-                        tmp['version'] = pver
+                    # handle packages which are explicitly pinned to some version
+                    pver = v.get('version', None)
+                    if grouped:
+                        n = v['name']
 
-                    ungrouped_psets.append(tmp)
+                        # add package to pset
+                        if pver:
+                            vercompare = v.get('version_comparator', 
+                               meta_defaults['version_comparator'] or "="
+                            )
+
+                            if grouped:
+                                n = "{}{}{}".format(v['name'], vercompare, pver)
+
+                        tmp.setdefault('name', []).append(n)
+                    else:
+                        tmp = copy.deepcopy(tmp)
+                        tmp['name'] = v['name']
+
+                        if pver:
+                            tmp['version'] = pver
+
+                        ungrouped_psets.append(tmp)
 
             # finally make a flat list of all config defined psets 
             # and sub_psets created by this method, but keep the 
