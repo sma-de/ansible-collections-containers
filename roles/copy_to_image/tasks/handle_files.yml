@@ -10,6 +10,22 @@
       - not _result.stat.exists
 
 
+    ##
+    ## note: strangely enough, copy file to file only works when all
+    ##   parent dir's pre exist and cannot be tweaked to handle dir
+    ##   creation internally (but it works when it is used for copying
+    ##   directories), so we do it ourselves here "manually"
+    ##
+  - name: assure parent dir exists on remote
+    ansible.builtin.file:
+      state: directory
+      path: "{{ _cpimg_files_iter.value.copy_api.dest | dirname }}"
+      owner: "{{ _cpimg_files_iter.value.copy_api.owner | default(omit) }}"
+      group: "{{ _cpimg_files_iter.value.copy_api.group | default(omit) }}"
+      mode: >-
+        {{ _cpimg_files_iter.value.copy_api.directory_mode | default(omit) }}
+
+
   - name: copy file / dir '{{ _cpimg_files_iter.value.src_rel }}' to image  ==>>  {{ _tmpimg_id }}
     ansible.builtin.copy: "{{ _cpimg_files_iter.value.copy_api }}"
 
