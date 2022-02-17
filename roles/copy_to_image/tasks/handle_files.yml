@@ -1,6 +1,8 @@
 ---
 
-  - name: check that source '{{ _cpimg_files_iter.value.src_rel }}' exists  ==>>  {{ _tmpimg_id }}
+  - name: >-
+      check that source '{{ _cpimg_files_iter.value.src_rel }}'
+      exists  ==>>  {{ copy_to_image_args_normed.image_id }}
     ansible.builtin.stat:
       path: "{{ _cpimg_files_iter.value.src }}"
     become: no
@@ -26,6 +28,8 @@
         {{ _cpimg_files_iter.value.copy_api.directory_mode | default(omit) }}
 
 
-  - name: copy file / dir '{{ _cpimg_files_iter.value.src_rel }}' to image  ==>>  {{ _tmpimg_id }}
+  - name: >-
+      copy file / dir '{{ _cpimg_files_iter.value.src_rel }}' to
+      image  ==>>  {{ copy_to_image_args_normed.image_id }}
     ansible.builtin.copy: "{{ _cpimg_files_iter.value.copy_api }}"
 

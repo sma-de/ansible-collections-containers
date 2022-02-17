@@ -9,9 +9,6 @@
       ##copy_to_image_args: "{{ _tmp_sslcert_cfg.normalized }}"
       copy_to_image_args_normed: "{{ _tmp_copycfg.normalized }}"
 
-      _tmpimg_id: >-
-        {{ _tmp_copycfg.normalized.image_owner }}/{{ _tmp_copycfg.normalized.image_name }}
-
 
   - include_tasks: handle_files.yml
     loop: >-
