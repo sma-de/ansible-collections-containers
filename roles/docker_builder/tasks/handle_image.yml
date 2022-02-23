@@ -268,8 +268,8 @@
         loop: >-
           {{ _cur_dockimg.packages.npm
            | smabot.containers.to_psets(
-                auto_version=_autovcfg_iter, grouped=False
-             ) }}
+              auto_version=_autovcfg_iter, grouped=False
+           ) }}
         loop_control:
           loop_var: _iter_packinst
 
@@ -279,11 +279,22 @@
         loop: >-
           {{ _cur_dockimg.packages.maven
            | smabot.containers.to_psets(
-                auto_version=_autovcfg_iter, grouped=False,
-                pkg_convfn='maven'
-             ) }}
+              auto_version=_autovcfg_iter, grouped=False,
+              pkg_convfn='maven'
+           ) }}
         loop_control:
           loop_var: _iter_packinst
+
+
+      - name: handle optional pysrc package installs  ==>>  {{ _cur_dockimg.fullname }}
+        include_tasks: packages/pysrc/main.yml
+        vars:
+          psets_pysrc: >-
+            {{ _cur_dockimg.packages.pysrc
+             | smabot.containers.to_psets(
+                  auto_version=_autovcfg_iter, grouped=False,
+             ) }}
+        when: _cur_dockimg.packages.pysrc.packages
 
 
 ## do steps postpackage

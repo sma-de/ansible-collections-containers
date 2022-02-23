@@ -1,0 +1,29 @@
+---
+
+  - name: create temp work dir
+    ansible.builtin.tempfile:
+      state: directory
+    register: _tmpdir_stats
+
+
+  - name: checkout repo to tmpdir
+    ansible.builtin.git:
+      repo: "{{ _iter_packinst.srcurl }}"
+      dest: "{{ _tmpdir_stats.path }}"
+      version: "{{ _iter_packinst.version | default(omit, True) }}"
+
+
+  - name: run python install for source repo
+    ansible.builtin.command:
+      chdir: "{{ _tmpdir_stats.path }}"
+      argv:
+        - "{{ ansible_python_interpreter }}"
+        - setup.py
+        - install
+
+
+  - name: cleanup temp workdir
+    ansible.builtin.file:
+      path: "{{ _tmpdir_stats.path }}"
+      state: absent
+

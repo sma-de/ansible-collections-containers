@@ -411,6 +411,7 @@ class DockConfNormImagePackages(NormalizerBase):
           DockConfNormImagePipPackages(pluginref),
           DockConfNormImageNpmPackages(pluginref),
           DockConfNormImageMavenPackages(pluginref),
+          DockConfNormImagePySrcPackages(pluginref),
         ]
 
         super(DockConfNormImagePackages, self).__init__(pluginref, *args, **kwargs)
@@ -536,6 +537,23 @@ class DockConfNormImageDistroPackages(DockConfNormImageXPackBase):
     @property
     def config_path(self):
         return ['distro']
+
+
+
+class DockConfNormImagePySrcPackages(DockConfNormImageXPackBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockConfNormImagePackDefaults(pluginref),
+        ]
+
+        super(DockConfNormImagePySrcPackages, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['pysrc']
+
 
 
 class DockConfNormImagePackDefaults(NormalizerBase):

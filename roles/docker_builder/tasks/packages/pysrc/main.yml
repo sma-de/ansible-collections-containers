@@ -1,0 +1,28 @@
+---
+
+  ## prepare system for pysrc installation
+  - name: assure git is installed
+    ansible.builtin.package:
+      name: git
+      state: present
+    register: _tmp_git_installed
+
+
+  ## run pysrc install for each defined package
+  - include_tasks: handle_pysrc.yml
+    loop: "{{ psets_pysrc }}"
+    loop_control:
+      loop_var: _iter_packinst
+
+
+  ## clean system
+
+    ## if git was already installed (maybe by package manager),
+    ## we leave it be, but if we installed it here just to
+    ## handle our pysrc packages, we also remove it again
+  - name: remove git
+    ansible.builtin.package:
+      name: git
+      state: absent
+    when: _tmp_git_installed.changed
+
