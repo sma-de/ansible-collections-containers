@@ -56,6 +56,15 @@
       command: -c tail -f /dev/null
 
 
+##  - name: vars pre container
+##    debug:
+##      var: ansible_python_interpreter
+##
+##  - name: vars pre container
+##    debug:
+##      var: ansible_facts
+
+
   - name: make build container avaible as ansible host  ==>>  {{ _dbimg_iter.value.fullname }}
     add_host:
       name: "{{ _bcon_name }}"
@@ -114,6 +123,9 @@
         ##     errors / strange bugs because ansible_facts itself is 
         ##     never set to container mode
         ##
+        ##       => update: cannot confirm this anymore, it totally
+        ##            seems that ansible_facts is adapted to container host properly
+        ##
       - name: gather facts for  ==>>  {{ _dbimg_iter.value.fullname }}
         block:
 
@@ -130,10 +142,25 @@
 
           - setup:
 
-          ##   ## TODO: is it possible to update ansible_facts explicitly with set_fact, is this necessary??
-          ## - set_fact:
-          ##     ansible_facts: "{{ hostvars[ansible_host].ansible_facts }}"
 
+##      - name: vars in-container
+##        debug:
+##          var: ansible_python_interpreter
+##
+##      - name: vars in-container
+##        debug:
+##          var: ansible_facts
+
+
+        ##
+        ## note: while ansible_facts, os_family and co are properly
+        ##   updated to container env for some vars it seems still
+        ##   necessary to do this ourselves
+        ##
+      - name: adapt ansible special vars to container env
+        set_fact:
+          ansible_python_interpreter: >-
+            {{ ansible_facts.python.executable }}
 
 ## handle docker copy
       - include_role:
