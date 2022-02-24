@@ -87,6 +87,7 @@ class AutoVersionPostProc(FilterBase):
         return value
 
 
+
 class CombineBuildMetaFilter(FilterBase):
 
     FILTER_ID = 'combine_buildmeta'

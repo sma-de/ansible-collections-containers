@@ -282,10 +282,10 @@ class DockConfNormImageInstance(NormalizerNamed):
           DockConfNormImageInstallMeta(pluginref),
           ConfigNormerProxy(pluginref, force_ecosystems=True),
           (DockConfNormImageSCMBased, True), # make this lazy initialized (only set it, when it already exists in input cfg)
-          (DockConfNormImageAutoVersioning, True), # make this lazy initialized
           DockConfNormImageUsersGeneric(pluginref),
           DockConfNormImageDecorations(pluginref),
           DockConfNormImagePackages(pluginref),
+          (DockConfNormImageAutoVersioning, True), # make this lazy initialized
         ]
 
         super(DockConfNormImageInstance, self).__init__(pluginref, *args, **kwargs)
@@ -437,7 +437,8 @@ class DockConfNormImageXPackBase(NormalizerBase):
 
 
     def _norm_single_pack_ex(self, cfg, my_subcfg, cfgpath_abs, p):
-        pass
+        return p
+
 
     def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
         packs = setdefault_none(my_subcfg, 'packages', [])
@@ -459,17 +460,17 @@ class DockConfNormImageXPackBase(NormalizerBase):
                     continue  # dont do magic underscore keys
 
                 v = ps[k] or {}
-                ps[k] = v
 
                 setdefault_none(v, 'name', k)
+
+                v = self._norm_single_pack_ex(cfg, my_subcfg, cfgpath_abs, v)
+                ps[k] = v
 
                 av = v.get('auto_versioned', False)
 
                 if av:
                     v['ptype'] = self.config_path[-1]
                     pcfg['auto_versioned'] = v
-
-                self._norm_single_pack_ex(cfg, my_subcfg, cfgpath_abs, v)
 
         return my_subcfg
 
@@ -554,6 +555,11 @@ class DockConfNormImagePySrcPackages(DockConfNormImageXPackBase):
     def config_path(self):
         return ['pysrc']
 
+    def _norm_single_pack_ex(self, cfg, my_subcfg, cfgpath_abs, p):
+        mopts = setdefault_none(p, 'modopts', {})
+        setdefault_none(mopts, 'requirements_file', 'requirements.txt')
+        return p
+
 
 
 class DockConfNormImagePackDefaults(NormalizerBase):
@@ -588,6 +594,7 @@ class DockConfNormImagePackDefaultsMaven(DockConfNormImagePackDefaults):
     def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
         setdefault_none(my_subcfg['config'], 'checksum_alg', 'sha1')
         return my_subcfg
+
 
 
 class DockConfNormImagePipPackages(DockConfNormImageXPackBase):
@@ -697,11 +704,64 @@ class DockConfNormImageMavenPackages(DockConfNormImageXPackBase):
     def config_path(self):
         return ['maven']
 
+
+    ##@classmethod
+    ##def resolve_maven_sources(cls, mvnp, imgcfg):
+    ##    mvn_basecfg = imgcfg['packages']['maven']
+    ##    mvn_sources = mvn_basecfg['sources']
+
+    ##    sources = mvnp.get('sources', None) \
+    ##      or mvn_basecfg.get('default_settings', {}).get('sources', None)
+
+    ##    ansible_assert(sources,
+    ##       "could not determine any maven source"\
+    ##       " for maven package: {}".format(mvnp)
+    ##    )
+
+    ##    # convert source id's to source maps
+    ##    res = []
+
+    ##    for s in sources:
+    ##        res.append(mvn_sources[s])
+
+    ##    return res
+
+
     def _norm_single_pack_ex(self, cfg, my_subcfg, cfgpath_abs, p):
+        # note: normally default settings are only merged into packages when the final psets are generated, but we need some post content earlier here for auto versioning
+        # TODO: rethink default_settings
+        tmp = copy.deepcopy(my_subcfg['default_settings'])
+        merge_dicts(tmp, p)
+        p = tmp
+
+        # replace source keys with source maps
+        sources = my_subcfg['sources']
+
+        ansible_assert(sources, "no sources defined for maven packages")
+        ansible_assert(p['sources'],
+          "no sources defined for maven package: {}".format(p)
+        )
+
+        tmp = []
+        for s in p['sources']:
+            tmp.append(sources[s])
+
+        # sources can optionally specify some default settings for
+        # packages (e.g.: default maven type), apply them here,
+        # but only using the first source for now
+        p['sources'] = tmp
+        tmp = tmp[0]
+
+        p = merge_dicts(
+          copy.deepcopy(tmp.get('defaults', {})), p
+        )
+
         coords = setdefault_none(p, 'coordinates', {})
 
         setdefault_none(coords, 'aid', p['name'])
-        setdefault_none(coords, 'ver', p['version'])
+
+        if not p.get('auto_versioned', False):
+            setdefault_none(coords, 'ver', p['version'])
 
         dest = setdefault_none(p, 'destination', {})
         dstpath = dest['path']
@@ -717,6 +777,8 @@ class DockConfNormImageMavenPackages(DockConfNormImageXPackBase):
                 v = { 'sum': v }
 
             csums[k] = v
+
+        return p
 
 
 class DockConfNormImageMavenSourcesBase(NormalizerBase):
@@ -968,9 +1030,13 @@ class DockConfNormImageDecorations(NormalizerBase):
         return my_subcfg
 
 
+
 class DockConfNormImageAutoVersioning(NormalizerBase):
 
     NORMER_CONFIG_PATH = ['auto_versioning']
+
+    AUTOPACKAGE_REFKEY = '<AUTOPACKAGE>'
+
 
     def __init__(self, pluginref, *args, **kwargs):
         self._add_defaultsetter(kwargs, 
@@ -990,7 +1056,7 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
         return self.NORMER_CONFIG_PATH
 
 
-    def _norm_margs_parent_image_command(self, method_args):
+    def _norm_margs_parent_image_command(self, method_args, cfg, cfgpath_abs):
         pp = setdefault_none(method_args, 'postproc', {})
 
         cgrp = pp.get('capture_group', None)
@@ -1004,7 +1070,7 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
             pp['capture_group'] = cgrp
 
 
-    def _norm_margs_pypi_releases(self, method_args):
+    def _norm_margs_pypi_releases(self, method_args, cfg, cfgpath_abs):
         opts = setdefault_none(method_args, 'opts', {})
         subfn_args = setdefault_none(opts, 'subfn_args', {})
 
@@ -1015,9 +1081,41 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
         subfn_args.setdefault('subselect', -1)
 
 
-    def _norm_margs_github_releases(self, method_args):
+    def _norm_margs_github_releases(self, method_args, cfg, cfgpath_abs):
         cfg = setdefault_none(method_args, 'cfg', {})
         setdefault_none(cfg, 'action', 'latest_release')
+
+
+    def _norm_margs_maven_releases(self, method_args, cfg, cfgpath_abs):
+        opts = setdefault_none(method_args, 'opts', {})
+        pack = setdefault_none(method_args, 'package', self.AUTOPACKAGE_REFKEY)
+        pcfg = self.get_parentcfg(cfg, cfgpath_abs)
+
+        if pack == self.AUTOPACKAGE_REFKEY:
+            # replace magic string key with package description
+            # from package install section
+            avp = pcfg['packages']['auto_versioned']
+
+            ansible_assert(avp['ptype'] == 'maven',
+               "Trying to auto version with maven_release method"\
+               " but auto versioned package is of type '{}': {}".format(
+                 avp['ptype'], avp
+               )
+            )
+
+            pack = avp
+            method_args['package'] = pack
+
+            repos = []
+            ##tmp = DockConfNormImageMavenPackages.resolve_maven_sources(
+            ##  pack, pcfg
+            ##)
+
+            ##for s in tmp['sources']:
+            for s in pack['sources']:
+                repos.append(s['url'])
+
+            opts['repo_urls'] = repos
 
 
     def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
@@ -1032,6 +1130,13 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
         mtype_normed = mtype.replace('-', '_')
         my_subcfg['method_type'] = mtype_normed
 
+        margs = my_subcfg['method_args']
+
+        # make sure this is set and also an int number
+        margs['vercnt_max'] = int(
+          setdefault_none(my_subcfg, 'vercnt_max', 3)
+        )
+
         norm_args_fn = getattr(self, 
            '_norm_margs_' + mtype_normed, None
         )
@@ -1042,8 +1147,9 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
                " type '{}'".format(mtype)
             )
 
-        norm_args_fn(my_subcfg['method_args'])
+        norm_args_fn(margs, cfg, cfgpath_abs)
         return my_subcfg
+
 
 
 class DockConfNormImageAutoVerSCMBased(NormalizerBase):

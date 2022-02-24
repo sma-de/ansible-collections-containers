@@ -13,6 +13,25 @@
       version: "{{ _iter_packinst.version | default(omit, True) }}"
 
 
+    # optionally handle repo requirements file when it exists
+  - set_fact:
+      reqfile_path: >-
+        {{ (_tmpdir_stats.path, _iter_packinst.requirements_file)
+         | path_join }}
+
+
+  - name: check if repo contains a requirements file
+    ansible.builtin.stat:
+      path: "{{ reqfile_path }}"
+    register: _tmp_stat
+
+
+  - name: make sure all python requirements are fullfilled
+    ansible.builtin.pip:
+      requirements: "{{ reqfile_path }}"
+    when: _tmp_stat.stat.exists
+
+
   - name: run python install for source repo
     ansible.builtin.command:
       chdir: "{{ _tmpdir_stats.path }}"

@@ -45,6 +45,18 @@
             failed to determine a single in-version.
 
 
+        ##
+        ## note: this expects auto-versioning methods to return
+        ##   versions sorted from new to old
+        ##
+      - name: >-
+          of all found potential auto versions take the last {{ dbimg_iter.value.auto_versioning.method_args.vercnt_max }}
+        set_fact:
+          _tmp_in_versions: >-
+            {{ _tmp_in_versions[:_dbimg_iter.value.auto_versioning.method_args.vercnt_max] }}
+        when: _dbimg_iter.value.auto_versioning.method_args.vercnt_max > 0
+
+
       - block:
 
            # TODO: support other scm types

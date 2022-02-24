@@ -1,0 +1,12 @@
+---
+
+  - set_fact:
+      _tmp_in_versions: >-
+         {{ _tmp_in_versions + (
+            q('smabot.base.maven_versions',
+                _dbimg_iter.value.auto_versioning.method_args.package.coordinates,
+                mapkey='version',
+                **_dbimg_iter.value.auto_versioning.method_args.opts
+            ) | first)
+         }}
+
