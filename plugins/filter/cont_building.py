@@ -172,7 +172,10 @@ class PSetsFilter(FilterBase):
         # fill in sources key list with sources info dicts
         p_sources = []
         for sk in tmp['sources']:
-            p_sources.append(base_map['sources'][sk])
+            if not isinstance(sk, collections.abc.Mapping):
+                sk = base_map['sources'][sk]
+
+            p_sources.append(sk)
 
         tmp['sources'] = p_sources
 
@@ -227,7 +230,11 @@ class PSetsFilter(FilterBase):
 
         unpack_cfg = setdefault_none(pdst, 'unpacking', False)
 
-        if isinstance(unpack_cfg, collections.abc.Mapping):
+        if unpack_cfg:
+            if not isinstance(unpack_cfg, collections.abc.Mapping):
+                unpack_cfg = {}
+                pdst['unpacking'] = unpack_cfg
+
             csums = setdefault_none(unpack_cfg, 'checksums', {})
             for k in csums:
                 v = csums[k]

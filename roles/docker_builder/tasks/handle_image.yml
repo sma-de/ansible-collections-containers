@@ -276,6 +276,10 @@
 
 ## handle special package managers
 
+      - debug:
+          var: _autovcfg_iter
+
+
       - name: pip package installs  ==>>  {{ _cur_dockimg.fullname }}
         ansible.builtin.pip: "{{ _iter_packinst }}" 
         loop: >-

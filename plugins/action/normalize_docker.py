@@ -767,6 +767,8 @@ class DockConfNormImageMavenPackages(DockConfNormImageXPackBase):
         dstpath = dest['path']
         dest['singlefile'] = dstpath[-1] != '/'
 
+        setdefault_none(dest, 'config', {})
+
         csums = setdefault_none(p, 'checksums', {})
 
         for k in csums:
@@ -1134,7 +1136,7 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
 
         # make sure this is set and also an int number
         margs['vercnt_max'] = int(
-          setdefault_none(my_subcfg, 'vercnt_max', 3)
+          setdefault_none(margs, 'vercnt_max', 3)
         )
 
         norm_args_fn = getattr(self, 

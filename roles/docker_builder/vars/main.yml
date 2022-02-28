@@ -41,6 +41,11 @@
                         openssh-client:
 
                     python:
+                      ##
+                      ## enabling this on default seems a very
+                      ## sensable idea on 2nd thought
+                      ##
+                      enable: true
                       packages:
                         python3:
                         python3-pip:
