@@ -146,8 +146,8 @@ class ActionModule(ConfigNormalizerBase):
         tmp = super(ActionModule, self).argspec
 
         tmp.update({
-          'extra_envs': ([[collections.abc.Mapping]], {}),
-          'modify_path': ([[collections.abc.Mapping]], {}),
+          'extra_envs': ([[collections.abc.Mapping]], []),
+          'modify_path': ([collections.abc.Mapping], {}),
         })
 
         return tmp
