@@ -47,23 +47,6 @@ class DockInstEnvHandler(NormalizerBase):
 
                 add_new_envkey(k, modret['stdout'], resmap, env_keys)
 
-        ## update: dont do special stuff for proxy and const vars here anymore, they are now handle differently externally (and passed in as extra_envs)
-        ##constenv = get_subdict(my_subcfg, ['static'], default_empty=True)
-        ##env_keys = list(constenv.keys())
-
-        ##proxy = cfg.get('proxy', None)
-
-        ##if proxy:
-        ##    ## if proxy is set, copy proxy vars to env
-        ##    proxy = proxy.get('vars', None)
-
-        ##    ansible_assert(proxy, 
-        ##      "bad docker config, proxy set but proxy vars are empty"
-        ##    )
-
-        ##    for (k, v) in iteritems(proxy):
-        ##        add_new_envkey(k, v, constenv, env_keys)
-
         constenv = get_subdict(my_subcfg, ['static'], default_empty=True)
         constenv.clear()
 
@@ -75,9 +58,13 @@ class DockInstEnvHandler(NormalizerBase):
 
         dynenv = my_subcfg.get('dynamic', None)
 
-        if not dynenv:
+        modpath = self.pluginref.get_taskparam('modify_path')
+
+        if not dynenv and not modpath:
             ## no dynamic cfg set, nothing to do
             return my_subcfg
+
+        resmap = {}
 
         tmp = {}
 
@@ -85,14 +72,54 @@ class DockInstEnvHandler(NormalizerBase):
             # use standard env shelling mechanism for expanding env vars
             tmp[k] = 'echo "{}"'.format(v)
 
-        resmap = {}
+        if modpath:
+            # get currently set path on image to build
+            tmp['PATH'] = 'echo "{}"'.format('$PATH')
 
         handle_shellers(tmp, env_keys, resmap)
+
+        # handle modifying system $PATH for new image
+        if modpath:
+            presents = modpath.get('present', [])
+            absents = modpath.get('absent', [])
+
+            new_path = []
+
+            if modpath.get('presets', True):
+                known_paths = {}
+
+                for p in presents:
+                    known_paths[p] = True
+
+                for p in absents:
+                    known_paths[p] = False
+
+                for p in resmap['PATH'].split(':'):
+                    known = known_paths.pop(p, None)
+
+                    if known is None or known:
+                        # keep paths not explicitly handled, and also
+                        # the ones in present obviously
+                        new_path.append(p)
+                    ##else: # absentee paths, dont keep them
+
+                ## append all present paths not already set on this at the end
+                ## TODO: support more positioning modes for new paths??
+                for (k, v) in iteritems(known_paths):
+                    if v:
+                        new_path.append(k)
+
+            else:
+                new_path = presents
+
+            resmap['PATH'] = ':'.join(new_path)
+
         shellers = dynenv.get('shell', {})
         handle_shellers(shellers, env_keys, resmap)
 
         constenv.update(resmap)
         return my_subcfg
+
 
 
 class ActionModule(ConfigNormalizerBase):
@@ -120,6 +147,7 @@ class ActionModule(ConfigNormalizerBase):
 
         tmp.update({
           'extra_envs': ([[collections.abc.Mapping]], {}),
+          'modify_path': ([[collections.abc.Mapping]], {}),
         })
 
         return tmp

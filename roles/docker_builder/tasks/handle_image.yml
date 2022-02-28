@@ -360,6 +360,7 @@
           compute_contenv_args:
             task_name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
             config_ansvar: _cur_dockimg
+            modify_path: "{{ _cur_dockimg.sys_path }}"
             extra_envs:
               - "{{ _cur_image_env.vars }}"
               - "{{ _cur_image_deco | smabot.containers.deco_to_env }}"
