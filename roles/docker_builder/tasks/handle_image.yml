@@ -328,6 +328,17 @@
         when: _cur_dockimg.packages.pysrc.packages
 
 
+## optionally handle "features"
+
+      - name: optionally handle feature 'sudo'
+        include_role:
+          name: smabot.base.setup_sudo
+        vars:
+          smabot_base_setup_sudo_args: >-
+            {{ _cur_dockimg.features.sudo }}
+        when: _cur_dockimg.features.sudo
+
+
 ## do steps postpackage
       - name: handle custom post package install steps
         include_tasks: "{{ _cur_dockimg.steps.post_packages }}"

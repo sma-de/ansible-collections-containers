@@ -38,6 +38,40 @@ from ansible.utils.display import Display
 display = Display()
 
 
+def get_docker_user(imgcfg, update=False):
+    ## handle docker user defaulting
+    du = imgcfg.get('docker_user', None)
+
+    if not du:
+        # default docker user to parent image user (or config
+        # defined fallback user) if it exists
+        du = imgcfg['users'].get('docker_default_user', '')
+
+    if update:
+        imgcfg['docker_user'] = du
+
+    return du
+
+
+def magic_docker_user(rawusr, imgcfg, cfg, cfgpath_abs):
+    return get_docker_user(imgcfg)
+
+
+MAGIC_USER_MAP = {
+  '<DOCKER_USER>': magic_docker_user,
+}
+
+
+def parse_user(rawusr, imgcfg, cfg, cfgpath_abs):
+    tmp = MAGIC_USER_MAP.get(rawusr, None)
+
+    if not tmp:
+        return rawusr
+
+    return tmp(rawusr, imgcfg, cfg, cfgpath_abs)
+
+
+
 class ScmHandler(abc.ABC):
 
     def __init__(self, pluginref):
@@ -285,12 +319,13 @@ class DockConfNormImageInstance(NormalizerNamed):
           ##   actually must interact with the ecosystem in question 
           ##   for doing proper proxy normalizing for it)
           ##
-          DockConfNormImageInstallMeta(pluginref),
           ConfigNormerProxy(pluginref, force_ecosystems=True),
+          DockConfNormImageInstallMeta(pluginref),
           (DockConfNormImageSCMBased, True), # make this lazy initialized (only set it, when it already exists in input cfg)
           DockConfNormImageUsersGeneric(pluginref),
           DockConfNormImageDecorations(pluginref),
           DockConfNormImagePackages(pluginref),
+          DockConfNormImgFeatSudo(pluginref),
           (DockConfNormImageAutoVersioning, True), # make this lazy initialized
         ]
 
@@ -335,15 +370,10 @@ class DockConfNormImageInstance(NormalizerNamed):
 
         return my_subcfg
 
+
     def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
         ## handle docker user defaulting
-        du = my_subcfg.get('docker_user', None)
-
-        if not du:
-            # default docker user to parent image user (or config 
-            # defined fallback user) if it exists
-            du = my_subcfg['users'].get('docker_default_user', '')
-            my_subcfg['docker_user'] = du
+        get_docker_user(my_subcfg, update=True)
 
         ## handle authors defaulting
         authors = my_subcfg.get('authors', None)
@@ -384,6 +414,67 @@ class DockConfNormImageInstance(NormalizerNamed):
 
         if tmp:
             my_subcfg['tags'] += re.split(r'\s+', tmp.strip())
+
+        return my_subcfg
+
+
+
+class DockConfNormImgFeatSudo(NormalizerBase):
+
+##    def __init__(self, pluginref, *args, **kwargs):
+##        super(DockConfNormImgFeatSudo, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['features', 'sudo']
+
+    @property
+    def simpleform_key(self):
+        return '_simple_sudo'
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        simple_sudo = my_subcfg.pop(self.simpleform_key, False)
+
+        if simple_sudo:
+            # create default docker sudo entry, which means that
+            # standard docker user has all the rights without pw
+            my_subcfg['mappings'] = {
+              'ansible_contbuild': {
+                'user_specs': [{
+                  'users': ['<DOCKER_USER>'],
+                  'subspecs': [{
+                     'cmd_specs': [{
+                        'tags': ['NOPASSWD:']
+                     }],
+                  }],
+                  'comment': \
+                      "assures that standard docker user"\
+                      " can do anything without needing a password"
+                }],
+              }
+            }
+
+        # normalize mappings
+        mappings = my_subcfg.get('mappings', None) or {}
+        pcfg = self.get_parentcfg(cfg, cfgpath_abs, level=2)
+
+        for k, v in mappings.items():
+            if not isinstance(v, collections.abc.Mapping):
+                # ignore simple key mappings here
+                continue
+
+            for us in v['user_specs']:
+
+                if not isinstance(us, collections.abc.Mapping):
+                    # ignore raw string user mappings
+                    continue
+
+                # normalize user names
+                tmp = []
+                for u in us['users']:
+                    tmp.append(parse_user(u, pcfg, cfg, cfgpath_abs))
+
+                us['users'] = tmp
 
         return my_subcfg
 
