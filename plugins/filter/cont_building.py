@@ -430,6 +430,7 @@ class AppendContEnvFilter(FilterBase):
           'new_vars': ([collections.abc.Mapping],),
           'strategy': (list(string_types), 'replace'),
           'stratopts': ([collections.abc.Mapping], {}),
+          'syspath': ([collections.abc.Mapping], {}),
         })
 
         return tmp
@@ -486,6 +487,7 @@ class AppendContEnvFilter(FilterBase):
         if not isinstance(value, collections.abc.Mapping):
             raise AnsibleOptionsError("filter input must be a mapping")
 
+        ## handle generic env vars
         curvars = value.setdefault('vars', {})
         newvars = self.get_taskparam('new_vars')
 
@@ -505,6 +507,16 @@ class AppendContEnvFilter(FilterBase):
             curvars[k] = self._do_strat_basic(
               strat, k, curvars, newvars, **stratopts
             )
+
+        ## handle syspath
+        curpath = value.setdefault('syspath', {})
+        newpath = self.get_taskparam('syspath')
+
+        for x in ['present', 'absent']:
+            cur = setdefault_none(curpath, x, [])
+            for n in newpath.get(x, []):
+                if n not in cur:
+                    cur.append(n)
 
         return value
 

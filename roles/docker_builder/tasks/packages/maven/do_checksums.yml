@@ -1,49 +1,55 @@
 ---
 
-  ##
-  ## param notes:
-  ##
-  ##   optional: when optional is set than a checksum mismatch
-  ##     (or checksum file not even existing) does not result in an error
-  ##
-
-  - name: >-
-      get checksum of type '{{ _checksums_iter.key }}'
-      for file  ==>>  {{ _checksums_iter.value.file
-      | default(checksum_params.default_file, True) }}
-    ansible.builtin.stat:
-      path: >-
-        {{ _checksums_iter.value.file
-         | default(checksum_params.default_file, True) }}
-
-      get_checksum: yes
-      checksum_algorithm: "{{ _checksums_iter.key }}"
-
-      get_mime: no
-      get_attributes: no
-    register: _tmp_checksum_stat
-    failed_when: >-
-      not _tmp_checksum_stat.stat.exists
-      and not checksum_params.get('optional', False)
+  - include_role:
+      name: smabot.base.do_checksum
+    vars:
+      smabot_base_do_checksum_args: >-
+        file: >-
+          {{ _checksums_iter.value.file
+           | default(checksum_params.default_file, True) }}
+        checksum: >-
+           {{ _checksums_iter.key ~ ':' ~ _checksums_iter.value.sum }}
+        optional: "{{ checksum_params.get('optional', False) }}"
+        {{ smabot_base_setup_sonarscan_args_normed.destination.unpacking.get('checksum', {}) }}
 
 
-  - ansible.builtin.assert:
-      that:
-        - _tmp_checksum_stat.stat.checksum == _checksums_iter.value.sum
-      fail_msg: >-
-        Checksum mismatch for file '{{ _checksums_iter.value.file
-        | default(checksum_params.default_file, True) }}',
-        expected '{{ _checksums_iter.value.sum }}' but got
-        '{{ _tmp_checksum_stat.stat.checksum }}'  [Type: {{ _checksums_iter.key }}]
-    when: not checksum_params.get('optional', False)
-
-
-    ##
-    ## optionally save checksum compare result to user specified variable
-    ##
-  - set_fact:
-      "{{ checksum_params.get('compare_resvar', '') }}": >-
-        {{ _tmp_checksum_stat.get('stat', {}).get('checksum', '')
-           == _checksums_iter.value.sum }}
-    when: checksum_params.get('compare_resvar', None)
+##   - name: >-
+##       get checksum of type '{{ _checksums_iter.key }}'
+##       for file  ==>>  {{ _checksums_iter.value.file
+##       | default(checksum_params.default_file, True) }}
+##     ansible.builtin.stat:
+##       path: >-
+##         {{ _checksums_iter.value.file
+##          | default(checksum_params.default_file, True) }}
+## 
+##       get_checksum: yes
+##       checksum_algorithm: "{{ _checksums_iter.key }}"
+## 
+##       get_mime: no
+##       get_attributes: no
+##     register: _tmp_checksum_stat
+##     failed_when: >-
+##       not _tmp_checksum_stat.stat.exists
+##       and not checksum_params.get('optional', False)
+## 
+## 
+##   - ansible.builtin.assert:
+##       that:
+##         - _tmp_checksum_stat.stat.checksum == _checksums_iter.value.sum
+##       fail_msg: >-
+##         Checksum mismatch for file '{{ _checksums_iter.value.file
+##         | default(checksum_params.default_file, True) }}',
+##         expected '{{ _checksums_iter.value.sum }}' but got
+##         '{{ _tmp_checksum_stat.stat.checksum }}'  [Type: {{ _checksums_iter.key }}]
+##     when: not checksum_params.get('optional', False)
+## 
+## 
+##     ##
+##     ## optionally save checksum compare result to user specified variable
+##     ##
+##   - set_fact:
+##       "{{ checksum_params.get('compare_resvar', '') }}": >-
+##         {{ _tmp_checksum_stat.get('stat', {}).get('checksum', '')
+##            == _checksums_iter.value.sum }}
+##     when: checksum_params.get('compare_resvar', None)
 

@@ -326,6 +326,7 @@ class DockConfNormImageInstance(NormalizerNamed):
           DockConfNormImageDecorations(pluginref),
           DockConfNormImagePackages(pluginref),
           DockConfNormImgFeatSudo(pluginref),
+          DockConfNormImgFeatSonarqubeScanner(pluginref),
           (DockConfNormImageAutoVersioning, True), # make this lazy initialized
         ]
 
@@ -475,6 +476,62 @@ class DockConfNormImgFeatSudo(NormalizerBase):
                     tmp.append(parse_user(u, pcfg, cfg, cfgpath_abs))
 
                 us['users'] = tmp
+
+        return my_subcfg
+
+
+
+class DockConfNormImgFeatSonarqubeScanner(NormalizerBase):
+
+##    def __init__(self, pluginref, *args, **kwargs):
+##        super(DockConfNormImgFeatSudo, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['features', 'sonarqube_scanner']
+
+    @property
+    def simpleform_key(self):
+        return '_simple_key'
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        simple_form = my_subcfg.pop(self.simpleform_key, False)
+
+        if simple_form:
+            # we actually dont need to default here any values when
+            # coming from simple form, as sonar scanner install
+            # role can operate solely on defaults
+            pass
+
+        ## in docker context prefer headless package as default java env
+        java = setdefault_none(my_subcfg, 'java', 'openjdk-11-jre-headless')
+
+        ## add sonarqube java package as default to docker package
+        ## install map, in principle sonarqube role handles java
+        ## installing when necessary internally, but because of internal
+        ## ordering this would mean that ssl cert auto detection if java
+        ## certs handling is necessary would fail (because cert handling
+        ## runs before feature handling), so to avoid this issue we assure
+        ## here that java is installed early and cert handler picks it up
+        pcfg = self.get_parentcfg(cfg, cfgpath_abs, level=2)
+
+        tmp = setdefault_none(pcfg, 'packages', {})
+        tmp = setdefault_none(tmp, 'distro', {})
+        tmp = setdefault_none(tmp, 'packages', [])
+
+        if not tmp:
+            tmp.append({})
+
+        tmp = tmp[0]
+
+        ## another important point here is to avoid installing two
+        ## different java's, for this to work properly one should use
+        ## the generic term "java" as package-id and specify the exact
+        ## package name by mapkey "name"
+        tmp = setdefault_none(tmp, 'java', {})
+        java = setdefault_none(tmp, 'name', java)
+
+        my_subcfg['java'] = java
 
         return my_subcfg
 

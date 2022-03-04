@@ -11,7 +11,10 @@ from ansible.module_utils.six import iteritems##, string_types
 
 from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.base import ConfigNormalizerBase, NormalizerBase, NormalizerNamed
 from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.proxy import ConfigNormerProxy
-from ansible_collections.smabot.base.plugins.module_utils.utils.dicting import get_subdict, SUBDICT_METAKEY_ANY
+from ansible_collections.smabot.base.plugins.module_utils.utils.dicting import \
+  get_subdict, \
+  SUBDICT_METAKEY_ANY, \
+  setdefault_none
 
 from ansible_collections.smabot.base.plugins.module_utils.utils.utils import ansible_assert
 
@@ -60,6 +63,13 @@ class DockInstEnvHandler(NormalizerBase):
 
         modpath = self.pluginref.get_taskparam('modify_path')
 
+        if modpath:
+            modpath = [modpath]
+        else:
+            modpath = []
+
+        modpath += self.pluginref.get_taskparam('extra_syspath')
+
         if not dynenv and not modpath:
             ## no dynamic cfg set, nothing to do
             return my_subcfg
@@ -80,12 +90,24 @@ class DockInstEnvHandler(NormalizerBase):
 
         # handle modifying system $PATH for new image
         if modpath:
-            presents = modpath.get('present', [])
-            absents = modpath.get('absent', [])
-
             new_path = []
+            presents = []
+            absents  = []
 
-            if modpath.get('presets', True):
+            keep_presets = False
+
+            for mp in modpath:
+                for p in mp.get('present', []):
+                    if p not in presents:
+                        presents.append(p)
+
+                for a in mp.get('absent', []):
+                    if a not in absents:
+                        absents.append(a)
+
+                keep_presets = keep_presets or mp.get('presets', True)
+
+            if keep_presets:
                 known_paths = {}
 
                 for p in presents:
@@ -110,6 +132,7 @@ class DockInstEnvHandler(NormalizerBase):
                         new_path.append(k)
 
             else:
+
                 new_path = presents
 
             resmap['PATH'] = ':'.join(new_path)
@@ -118,6 +141,16 @@ class DockInstEnvHandler(NormalizerBase):
         handle_shellers(shellers, env_keys, resmap)
 
         constenv.update(resmap)
+
+        ## handle some generic special cases
+
+        ## check if we have java installations on system, if so
+        ## and JAVA_HOME is not set, default it to active jvm
+        java = self.pluginref.get_ansible_fact('java', default=None)
+
+        if java:
+            setdefault_none(constenv, 'JAVA_HOME', java['active']['homedir'])
+
         return my_subcfg
 
 
@@ -148,6 +181,7 @@ class ActionModule(ConfigNormalizerBase):
         tmp.update({
           'extra_envs': ([[collections.abc.Mapping]], []),
           'modify_path': ([collections.abc.Mapping], {}),
+          'extra_syspath': ([[collections.abc.Mapping]], []),
         })
 
         return tmp

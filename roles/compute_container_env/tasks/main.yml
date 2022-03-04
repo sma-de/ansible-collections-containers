@@ -9,6 +9,7 @@
       config_ansvar: "{{ compute_contenv_args.config_ansvar }}"
       modify_path: "{{ compute_contenv_args.modify_path | default(omit, True) }}"
       extra_envs: "{{ compute_contenv_args.extra_envs | default(omit, True) }}"
+      extra_syspath: "{{ compute_contenv_args.extra_syspath | default(omit, True) }}"
     register: _tmp_modres_
 
     ##

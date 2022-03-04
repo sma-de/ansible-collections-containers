@@ -22,7 +22,10 @@
           checksum_params:
             default_file:
             optional: true
-            compare_resvar: _skip_mvn_artifact
+
+
+      - set_fact:
+          _skip_mvn_artifact: "{{ smabot_base_do_checksum_result }}"
 
     when: >-
       _iter_packinst.destination.unpacking

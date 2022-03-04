@@ -339,10 +339,37 @@
         when: _cur_dockimg.features.sudo
 
 
+      - block:
+
+          - name: optionally handle feature 'sonar-scanner'
+            include_role:
+              name: smabot.base.setup_sonarqube_scanner
+            vars:
+              smabot_base_setup_sonarscan_args: >-
+                {{ _cur_dockimg.features.sonarqube_scanner }}
+
+          - name: add sonar scanner related envvars
+            set_fact:
+              _cur_image_env: >-
+                 {{ _cur_image_env | smabot.containers.append_contenv(
+                      new_vars=(smabot_base_setup_sonarscan_result.envvars
+                        | default(None)
+                      ),
+                      syspath=(smabot_base_setup_sonarscan_result.syspath
+                        | default(None)
+                      ),
+                    )
+                 }}
+            when: smabot_base_setup_sonarscan_result.envvars is truthy
+
+        when: _cur_dockimg.features.sonarqube_scanner
+
+
 ## do steps postpackage
       - name: handle custom post package install steps
         include_tasks: "{{ _cur_dockimg.steps.post_packages }}"
         when: _cur_dockimg.get('steps', {}).get('post_packages', None) is truthy
+
 
 ## do dynamic env
 
@@ -375,6 +402,8 @@
             extra_envs:
               - "{{ _cur_image_env.vars }}"
               - "{{ _cur_image_deco | smabot.containers.deco_to_env }}"
+            extra_syspath:
+              - "{{ _cur_image_env.syspath }}"
 
       - debug:
           var: _cur_dockimg
