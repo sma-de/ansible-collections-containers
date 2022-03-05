@@ -428,7 +428,7 @@
               - "{{ _cur_image_env.vars }}"
               - "{{ _cur_image_deco | smabot.containers.deco_to_env }}"
             extra_syspath:
-              - "{{ _cur_image_env.syspath }}"   ## | default({}, True) }}"
+              - "{{ _cur_image_env.syspath | default({}, True) }}"
 
       - debug:
           var: _cur_dockimg
