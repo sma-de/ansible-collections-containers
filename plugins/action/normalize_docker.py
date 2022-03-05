@@ -445,7 +445,7 @@ class DockConfNormImgOptFeatures(NormalizerBase):
           (DockConfNormImgFeatSonarqubeScanner, True),
         ]
 
-        super(DockConfNormImageInstance, self).__init__(pluginref, *args, **kwargs)
+        super(DockConfNormImgOptFeatures, self).__init__(pluginref, *args, **kwargs)
 
     @property
     def config_path(self):
