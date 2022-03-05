@@ -325,6 +325,7 @@ class DockConfNormImageInstance(NormalizerNamed):
           DockConfNormImageUsersGeneric(pluginref),
           DockConfNormImageDecorations(pluginref),
           DockConfNormImagePackages(pluginref),
+          DockConfNormImgLocales(pluginref),
           DockConfNormImgFeatSudo(pluginref),
           DockConfNormImgFeatSonarqubeScanner(pluginref),
           (DockConfNormImageAutoVersioning, True), # make this lazy initialized
@@ -420,10 +421,23 @@ class DockConfNormImageInstance(NormalizerNamed):
 
 
 
-class DockConfNormImgFeatSudo(NormalizerBase):
+class DockConfNormImgLocales(NormalizerBase):
 
-##    def __init__(self, pluginref, *args, **kwargs):
-##        super(DockConfNormImgFeatSudo, self).__init__(pluginref, *args, **kwargs)
+    @property
+    def config_path(self):
+        return ['locales']
+
+    @property
+    def simpleform_key(self):
+        return 'enabled'
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        setdefault_none(my_subcfg, 'enabled', True)
+        return my_subcfg
+
+
+
+class DockConfNormImgFeatSudo(NormalizerBase):
 
     @property
     def config_path(self):

@@ -328,6 +328,31 @@
         when: _cur_dockimg.packages.pysrc.packages
 
 
+## handle locales
+
+      - block:
+
+          - name: optionally handle locales
+            include_role:
+              name: smabot.base.handle_locales
+            vars:
+              smabot_base_handle_locales_args: >-
+                {{ _cur_dockimg.locales }}
+
+          - name: add locale envvars
+            set_fact:
+              _cur_image_env: >-
+                 {{ _cur_image_env | smabot.containers.append_contenv(
+                      new_vars=(smabot_base_handle_locales_result.envvars
+                        | default(None)
+                      ),
+                    )
+                 }}
+            when: smabot_base_handle_locales_result.envvars is truthy
+
+        when: _cur_dockimg.locales.enabled
+
+
 ## optionally handle "features"
 
       - name: optionally handle feature 'sudo'
