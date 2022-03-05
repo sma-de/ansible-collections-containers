@@ -32,6 +32,61 @@ class DockInstEnvHandler(NormalizerBase):
         return ['environment']
 
 
+    def _handle_modpath(self, modpath, resmap):
+        # handle modifying system $PATH for new image
+        if not modpath:
+            return ## noop
+
+        new_path = []
+        presents = []
+        absents  = []
+
+        keep_presets = False
+
+        for mp in modpath:
+            for p in mp.get('present', []):
+                if p not in presents:
+                    presents.append(p)
+
+            for a in mp.get('absent', []):
+                if a not in absents:
+                    absents.append(a)
+
+            keep_presets = keep_presets or mp.get('presets', True)
+
+        if not presents and not absents:
+            return  ## noop
+
+        if keep_presets:
+            known_paths = {}
+
+            for p in presents:
+                known_paths[p] = True
+
+            for p in absents:
+                known_paths[p] = False
+
+            for p in resmap['PATH'].split(':'):
+                known = known_paths.pop(p, None)
+
+                if known is None or known:
+                    # keep paths not explicitly handled, and also
+                    # the ones in present obviously
+                    new_path.append(p)
+                ##else: # absentee paths, dont keep them
+
+            ## append all present paths not already set on this at the end
+            ## TODO: support more positioning modes for new paths??
+            for (k, v) in iteritems(known_paths):
+                if v:
+                    new_path.append(k)
+
+        else:
+            new_path = presents
+
+        resmap['PATH'] = ':'.join(new_path)
+
+
     def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
         def add_new_envkey(k, v, resmap, keylist):
             if k in keylist:
@@ -59,7 +114,7 @@ class DockInstEnvHandler(NormalizerBase):
             for (k, v) in iteritems(xenv):
                 add_new_envkey(k, v, constenv, env_keys)
 
-        dynenv = my_subcfg.get('dynamic', None)
+        dynenv = my_subcfg.get('dynamic', {})
 
         modpath = self.pluginref.get_taskparam('modify_path')
 
@@ -86,59 +141,15 @@ class DockInstEnvHandler(NormalizerBase):
             # get currently set path on image to build
             tmp['PATH'] = 'echo "{}"'.format('$PATH')
 
-        handle_shellers(tmp, env_keys, resmap)
+        if tmp:
+            handle_shellers(tmp, env_keys, resmap)
 
-        # handle modifying system $PATH for new image
-        if modpath:
-            new_path = []
-            presents = []
-            absents  = []
-
-            keep_presets = False
-
-            for mp in modpath:
-                for p in mp.get('present', []):
-                    if p not in presents:
-                        presents.append(p)
-
-                for a in mp.get('absent', []):
-                    if a not in absents:
-                        absents.append(a)
-
-                keep_presets = keep_presets or mp.get('presets', True)
-
-            if keep_presets:
-                known_paths = {}
-
-                for p in presents:
-                    known_paths[p] = True
-
-                for p in absents:
-                    known_paths[p] = False
-
-                for p in resmap['PATH'].split(':'):
-                    known = known_paths.pop(p, None)
-
-                    if known is None or known:
-                        # keep paths not explicitly handled, and also
-                        # the ones in present obviously
-                        new_path.append(p)
-                    ##else: # absentee paths, dont keep them
-
-                ## append all present paths not already set on this at the end
-                ## TODO: support more positioning modes for new paths??
-                for (k, v) in iteritems(known_paths):
-                    if v:
-                        new_path.append(k)
-
-            else:
-
-                new_path = presents
-
-            resmap['PATH'] = ':'.join(new_path)
+        self._handle_modpath(self, modpath, resmap)
 
         shellers = dynenv.get('shell', {})
-        handle_shellers(shellers, env_keys, resmap)
+
+        if shellers:
+            handle_shellers(shellers, env_keys, resmap)
 
         constenv.update(resmap)
 
