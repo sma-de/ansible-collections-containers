@@ -224,10 +224,6 @@ def get_docker_parent_infos(pluginref, parent_name):
 class DockerConfigNormalizer(NormalizerBase):
 
     def __init__(self, pluginref, *args, **kwargs):
-        self._add_defaultsetter(kwargs,
-          'sys_path', DefaultSetterConstant({})
-        )
-
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
           DockConfNormMeta(pluginref),
@@ -297,6 +293,10 @@ class DockConfNormImageOwner(NormalizerBase):
 class DockConfNormImageInstance(NormalizerNamed):
 
     def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'sys_path', DefaultSetterConstant({})
+        )
+
         self._add_defaultsetter(kwargs, 
           'tags', DefaultSetterConstant([])
         )
