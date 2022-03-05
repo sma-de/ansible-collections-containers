@@ -326,8 +326,7 @@ class DockConfNormImageInstance(NormalizerNamed):
           DockConfNormImageDecorations(pluginref),
           DockConfNormImagePackages(pluginref),
           DockConfNormImgLocales(pluginref),
-          DockConfNormImgFeatSudo(pluginref),
-          DockConfNormImgFeatSonarqubeScanner(pluginref),
+          DockConfNormImgOptFeatures(pluginref),
           (DockConfNormImageAutoVersioning, True), # make this lazy initialized
         ]
 
@@ -437,11 +436,30 @@ class DockConfNormImgLocales(NormalizerBase):
 
 
 
-class DockConfNormImgFeatSudo(NormalizerBase):
+class DockConfNormImgOptFeatures(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          (DockConfNormImgFeatSudo, True),
+          (DockConfNormImgFeatSonarqubeScanner, True),
+        ]
+
+        super(DockConfNormImageInstance, self).__init__(pluginref, *args, **kwargs)
 
     @property
     def config_path(self):
-        return ['features', 'sudo']
+        return ['features']
+
+
+
+class DockConfNormImgFeatSudo(NormalizerBase):
+
+    NORMER_CONFIG_PATH = ['sudo']
+
+    @property
+    def config_path(self):
+        return self.NORMER_CONFIG_PATH
 
     @property
     def simpleform_key(self):
@@ -497,12 +515,11 @@ class DockConfNormImgFeatSudo(NormalizerBase):
 
 class DockConfNormImgFeatSonarqubeScanner(NormalizerBase):
 
-##    def __init__(self, pluginref, *args, **kwargs):
-##        super(DockConfNormImgFeatSudo, self).__init__(pluginref, *args, **kwargs)
+    NORMER_CONFIG_PATH = ['sonarqube_scanner']
 
     @property
     def config_path(self):
-        return ['features', 'sonarqube_scanner']
+        return self.NORMER_CONFIG_PATH
 
     @property
     def simpleform_key(self):

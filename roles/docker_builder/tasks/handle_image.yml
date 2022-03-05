@@ -361,7 +361,7 @@
         vars:
           smabot_base_setup_sudo_args: >-
             {{ _cur_dockimg.features.sudo }}
-        when: _cur_dockimg.features.sudo
+        when: _cur_dockimg.features.get('sudo', False)
 
 
       - block:
@@ -387,7 +387,7 @@
                  }}
             when: smabot_base_setup_sonarscan_result.envvars is truthy
 
-        when: _cur_dockimg.features.sonarqube_scanner
+        when: _cur_dockimg.features.get('sonarqube_scanner', False)
 
 
 ## do steps postpackage
