@@ -144,7 +144,7 @@ class DockInstEnvHandler(NormalizerBase):
         if tmp:
             handle_shellers(tmp, env_keys, resmap)
 
-        self._handle_modpath(self, modpath, resmap)
+        self._handle_modpath(modpath, resmap)
 
         shellers = dynenv.get('shell', {})
 
