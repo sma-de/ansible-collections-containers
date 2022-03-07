@@ -8,9 +8,15 @@
 
 
   - set_fact:
+      _tmp_build_tags: []
       _tmp_idtag: "{{ _autovcfg_iter }}"
       _tmp_cur_autover:
          version_in: "{{ _autovcfg_iter }}"
+
+
+    # TODO: optionally allow to disable default version tags ?? (only build idtags)
+  - set_fact:
+      _tmp_build_tags: "{{ _tmp_build_tags + [_autovcfg_iter] }}"
 
 
   - name: optionally append scm timestamp to idtag when avaible
@@ -19,6 +25,12 @@
       _tmp_cur_autover: >-
          {{ _tmp_cur_autover | combine({'scm_ts': _tmp_scm_timestamp}) }}
     when: _tmp_scm_timestamp
+
+
+    ## add scm suffixed idtag to tags to build
+  - set_fact:
+      _tmp_build_tags: "{{ _tmp_build_tags + [_tmp_idtag] }}"
+    when: _tmp_idtag != _autovcfg_iter
 
 
   - name: decorate image with auto-version data
@@ -59,7 +71,9 @@
   - set_fact:
       _auto_versions: >-
          {{ _auto_versions 
-          + [(_tmp_cur_autover | combine({'idtag': _tmp_idtag}))]
+          + [(_tmp_cur_autover | combine({
+               'idtag': _tmp_idtag, 'tags': _tmp_build_tags
+            }))]
          }}
 
     when: _tmp_pullres.failed or _docker_force_rebuild
@@ -75,14 +89,19 @@
       - debug:
           msg: Skip already built auto version '{{ _tmp_idtag }}'
 
+
       - set_fact:
           _cur_image_meta: >-
             {{ _cur_image_meta 
              | combine({'skips': [{
-                   'tag': _tmp_idtag,
+                   'tag': _tags_iter,
                  }]}, recursive=True, list_merge='append'
                )
             }}
+
+        loop: "{{ _tmp_build_tags }}"
+        loop_control:
+          loop_var: _tags_iter
 
         when: docker_build.meta.create
 
