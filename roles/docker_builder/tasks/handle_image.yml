@@ -519,7 +519,15 @@
 
 
   - set_fact:
-      _build_tags: "{{ _cur_dockimg.tags }}"
+      _build_tags: []
+
+    ##
+    ## note: atm when handling a batch of multiple "variant" builds (autoversioning) only add custom fixed preset tags to "latest" version
+    ## TODO: do we need the possibility here to finetune this more???
+    ##
+  - set_fact:
+      _build_tags: "{{ _build_tags + _cur_dockimg.tags }}"
+    when: _autovcfg_iter.latest
 
   - set_fact:
       _build_tags: "{{ _autovcfg_iter.tags + _build_tags }}"

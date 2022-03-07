@@ -72,7 +72,8 @@
       _auto_versions: >-
          {{ _auto_versions 
           + [(_tmp_cur_autover | combine({
-               'idtag': _tmp_idtag, 'tags': _tmp_build_tags
+              'idtag': _tmp_idtag, 'tags': _tmp_build_tags,
+              'latest': _autovcfg_index == 0,
             }))]
          }}
 

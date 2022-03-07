@@ -1,7 +1,7 @@
 ---
 
   - set_fact:
-       _auto_versions: [{}]
+       _auto_versions: [{'latest': True}]
        _cur_image_meta: {}
        _cur_image_deco: "{{ _dbimg_iter.value.decorations }}"
 
@@ -83,6 +83,7 @@
         loop: "{{ _tmp_in_versions }}"
         loop_control:
           loop_var: _autovcfg_iter
+          index_var: _autovcfg_index
 
     when: _dbimg_iter.value.get('auto_versioning', False)
 
