@@ -10,7 +10,6 @@
         checksum: >-
            {{ _checksums_iter.key ~ ':' ~ _checksums_iter.value.sum }}
         optional: "{{ checksum_params.get('optional', False) }}"
-        {{ smabot_base_setup_sonarscan_args_normed.destination.unpacking.get('checksum', {}) }}
 
 
 ##   - name: >-
