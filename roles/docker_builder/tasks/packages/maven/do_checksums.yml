@@ -3,7 +3,7 @@
   - include_role:
       name: smabot.base.do_checksum
     vars:
-      smabot_base_do_checksum_args: >-
+      smabot_base_do_checksum_args:
         file: >-
           {{ _checksums_iter.value.file
            | default(checksum_params.default_file, True) }}
