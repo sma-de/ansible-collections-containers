@@ -38,6 +38,11 @@ from ansible.utils.display import Display
 display = Display()
 
 
+class IgnoreMissingDict(dict):
+    def __missing__(self, key):
+        return '{' + key + '}'
+
+
 def get_docker_user(imgcfg, update=False):
     ## handle docker user defaulting
     du = imgcfg.get('docker_user', None)
@@ -911,6 +916,22 @@ class DockConfNormImageMavenPackages(DockConfNormImageXPackBase):
 
     ##    return res
 
+    def _norm_install_shell(self, cfg, my_subcfg, cfgpath_abs, p, install):
+        shellcfg = install.get('shell', None)
+
+        if not shellcfg:
+            return ## no shell install, noop
+
+        if not isinstance(shellcfg, collections.abc.Mapping):
+            ## assume plain string cmd
+            shellcfg = {'cmd': shellcfg}
+            install['shell'] = shellcfg
+
+        ## template known variables inside shell command
+        shellcfg['cmd'] = shellcfg['cmd'].format_map(
+          IgnoreMissingDict(DESTPATH=p['destination']['path'])
+        )
+
 
     def _norm_single_pack_ex(self, cfg, my_subcfg, cfgpath_abs, p):
         # note: normally default settings are only merged into packages when the final psets are generated, but we need some post content earlier here for auto versioning
@@ -964,6 +985,11 @@ class DockConfNormImageMavenPackages(DockConfNormImageXPackBase):
                 v = { 'sum': v }
 
             csums[k] = v
+
+        ## optionally handle install subpath
+        install = setdefault_none(dest, 'install', {})
+
+        self._norm_install_shell(cfg, my_subcfg, cfgpath_abs, p, install)
 
         return p
 

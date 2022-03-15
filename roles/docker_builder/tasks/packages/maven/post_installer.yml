@@ -1,0 +1,30 @@
+---
+
+  ## TODO: support other install methods like custom task files
+
+  - block:
+
+      - name: template variables in shell command
+        set_fact:
+          _tmp_post_inst_args: >-
+            {{ _iter_packinst.destination.install.shell
+             | combine({
+                 'cmd': _iter_packinst.destination.install.shell.cmd.format(
+                    ARTIFACT_DLPATH=mvn_artifact_dlpath
+                  ),
+               }, recursive=True)
+            }}
+
+      - name: run post maven download installer of type shell
+        ansible.builtin.shell:
+          cmd: "{{ _tmp_post_inst_args.cmd }}"
+
+    when: _iter_packinst.destination.install.shell
+
+
+    # TODO: make this optional??
+  - name: assure maven artifact file is removed
+    ansible.builtin.file:
+      path: "{{ _tmp_last_mvn_artifact_status.dest }}"
+      state: absent
+
