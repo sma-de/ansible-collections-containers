@@ -1,7 +1,12 @@
 ---
 
-  - include_tasks: collect_pip_sources_filesys.yml
+  - include_role:
+      name: smabot.base.run_local
+    vars:
+      smabot_base_run_local_cfg:
+        tasks: "{{ smabot_containers_docker_builder_role_path }}/tasks/delegate_local/collect_pip_sources_filesys.yml"
     when: _pipreq_iter.value.type == 'filesys'
+
 
   - include_tasks: collect_pip_sources_url.yml
     when: _pipreq_iter.value.type == 'url'

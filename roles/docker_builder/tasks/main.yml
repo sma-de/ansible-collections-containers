@@ -71,6 +71,10 @@
       name: smabot.containers.normalize_docker
 
 
+  - set_fact:
+      smabot_containers_docker_builder_role_path: "{{ role_path }}"
+
+
     # optionally collect build meta informations like 
     # the complete names of build images and similar
   - set_fact:
