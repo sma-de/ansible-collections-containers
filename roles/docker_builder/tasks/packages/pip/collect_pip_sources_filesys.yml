@@ -1,0 +1,73 @@
+---
+
+  - name: check requirements source  ==>>  {{ _pipreq_iter.value.src }}
+    ansible.builtin.stat:
+      path: "{{ _pipreq_iter.value.src }}"
+      follow: yes
+    register: _tmp_src_stat
+    delegate_to: localhost
+
+
+  - ansible.builtin.assert:
+      that:
+        - _tmp_src_stat.stat.exists or _pipreq_iter.value.optional
+      fail_msg: >-
+        Mandatory pip requirements source '{{ _pipreq_iter.value.src }}'
+        does not exist
+
+
+  - block:
+
+      - ansible.builtin.assert:
+          that:
+            - _tmp_src_stat.stat.isdir or _tmp_src_stat.stat.isreg
+          fail_msg: >-
+            Found pip requirements source '{{ _pipreq_iter.value.src }}'
+            is neither a directory nor a regular file
+
+
+      - name: append source requirements file '{{ _pipreq_iter.value.src }}' to source file list
+        set_fact:
+          _pip_sources: >-
+             {{ _pip_sources
+              + [{'path': _pipreq_iter.value.src,
+                  'type': _pipreq_iter.value.type]
+             }}
+        when: _tmp_src_stat.stat.isreg
+
+
+      - block:
+
+          - name: find all requirements files in pip dir source  ==>>  {{ _pipreq_iter.value.src }}
+            ansible.builtin.find:
+              paths: "{{ _pipreq_iter.value.src }}"
+              ##file_type: file
+              file_type: any  ## in theory we dont want dirs here, but we want files and links
+              recurse: true
+              use_regex: false
+              patterns:
+                - "requirements*.txt"
+            register: _tmp_rq_in_dir
+            delegate_to: localhost
+
+
+          - ansible.builtin.assert:
+              that:
+                - _tmp_rq_in_dir.files or _pipreq_iter.value.optional
+              fail_msg: >-
+                Could not find any requirements file in mandatory directory
+                source '{{ _pipreq_iter.value.src }}'
+
+
+          - name: append source requirements files from dir source to source file list
+            set_fact:
+              _pip_sources: >-
+                {{ _pip_sources
+                + ( _tmp_rq_in_dir.files | map('smabot.base.subdict', keys_keep=['path'])
+                  | map('combine', {'type': _pipreq_iter.value.type}) | list)
+                }}
+
+        when: _tmp_src_stat.stat.isdir
+
+    when: _tmp_src_stat.stat.exists
+

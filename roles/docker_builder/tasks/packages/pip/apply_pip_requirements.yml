@@ -3,23 +3,32 @@
   - set_fact:
       _tmp_dest: >-
         {{ (_cur_dockimg.install_meta.basedir, 'python', 
-            'requirements', (_pipreq_iter | basename))
+            'requirements', (_pipreq_iter.path | basename))
           | path_join }}
 
 
-  - name: assure parent dir on target exists  ==>>  {{ _pipreq_iter }}
+  - name: assure parent dir on target exists  ==>>  {{ _pipreq_iter.get('id', _pipreq_iter.path) }}
     ansible.builtin.file:
       path: "{{ _tmp_dest | dirname }}"
       state: directory
 
 
-  - name: copy requirements file to target  ==>>  {{ _pipreq_iter }}
+  - name: download requirements file to target  ==>>  {{ _pipreq_iter.get('id', _pipreq_iter.path) }}
+    ansible.builtin.get_url:
+      url: "{{ _pipreq_iter.url }}"
+      dest:  "{{ _tmp_dest }}"
+      force: yes
+    when: _pipreq_iter.type == 'url'
+
+
+  - name: copy requirements file to target  ==>>  {{ _pipreq_iter.get('id', _pipreq_iter.path) }}
     ansible.builtin.copy:
-      src: "{{ _pipreq_iter }}"
+      src: "{{ _pipreq_iter.path }}"
       dest: "{{ _tmp_dest }}"
+    when: _pipreq_iter.type == 'filesys'
 
 
-  - name: apply pip requirements to target  ==>>  {{ _pipreq_iter }}
+  - name: apply pip requirements to target  ==>>  {{ _pipreq_iter.get('id', _pipreq_iter.path) }}
     ansible.builtin.pip:
       requirements: "{{ _tmp_dest }}"
 

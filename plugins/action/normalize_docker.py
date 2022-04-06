@@ -817,6 +817,7 @@ class DockConfNormImagePipRequirements(NormalizerBase):
     def __init__(self, pluginref, *args, **kwargs):
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
+          DockConfNormImagePipRequireTypeDefaults(pluginref),
           DockConfNormImagePipRequireSources(pluginref),
         ]
 
@@ -825,6 +826,52 @@ class DockConfNormImagePipRequirements(NormalizerBase):
     @property
     def config_path(self):
         return ['requirements']
+
+
+
+class DockConfNormImagePipRequireTypeDefaults(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          (DockConfNormImagePipRequireTypeDefaultsUrl, True),
+        ]
+
+        super(DockConfNormImagePipRequireTypeDefaults, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['type_defaults']
+
+
+class DockConfNormImagePipRequireTypeDefaultsUrl(NormalizerBase):
+
+    NORMER_CONFIG_PATH = ['url']
+
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          (DockConfNormImagePipRequireTypeDefaultsUrlServer, True),
+        ]
+
+        super(DockConfNormImagePipRequireTypeDefaultsUrl, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return self.NORMER_CONFIG_PATH
+
+
+class DockConfNormImagePipRequireTypeDefaultsUrlServer(NormalizerBase):
+
+    NORMER_CONFIG_PATH = ['server']
+
+    @property
+    def config_path(self):
+        return self.NORMER_CONFIG_PATH
+
+    @property
+    def simpleform_key(self):
+        return 'url'
 
 
 
@@ -859,6 +906,10 @@ class DockConfNormImagePipRequireSrcInst(NormalizerNamed):
           'optional', DefaultSetterConstant(False)
         )
 
+        self._add_defaultsetter(kwargs,
+          'type', DefaultSetterConstant(None)
+        )
+
         super(DockConfNormImagePipRequireSrcInst, self).__init__(pluginref, *args, **kwargs)
 
     @property
@@ -869,14 +920,86 @@ class DockConfNormImagePipRequireSrcInst(NormalizerNamed):
     def name_key(self):
         return 'src'
 
-    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
+
+    def _norm_srctype(self, cfg, my_subcfg, cfgpath_abs):
+        srctype = my_subcfg['type']
+
+        if srctype:
+            ## if type is set explicitly, respect it
+            return srctype
+
+        # check if server subkey is set, if so: srctype == url
+        # TODO
+
+        # check if src string describes valid url, if so: srctype == url
+        if my_subcfg.get('server', None):
+            return 'url'
+
+        # if none of the previous checks matched fallback to 'filesys' as type
+        return 'filesys'
+
+
+    def _norm_type_url(self, cfg, my_subcfg, cfgpath_abs):
+        # if a server is specified, prefix its url to src string
+        server = my_subcfg.get('server', None)
+
+        if server:
+            if not isinstance(server, collections.abc.Mapping):
+                server = {'url': server}
+
+            server = server['url']
+
+            if server[-1] != '/':
+                server += '/'
+
+            my_subcfg['src'] = server + my_subcfg['src']
+
+        # normalize remote filename
+        fname = my_subcfg.get('filename', None)
+        if not fname:
+            # on default convert url to a safe filename
+            fname = my_subcfg['src'].replace('//:', '_')
+            fname = fname.replace('/', '_').replace(':', '_')
+            my_subcfg['filename'] = fname
+
+
+    def _norm_type_filesys(self, cfg, my_subcfg, cfgpath_abs):
         # make relative source paths absolute to role_dir
         tmp = pathlib.Path(my_subcfg['src'])
         if not tmp.is_absolute():
             pcfg = self.get_parentcfg(cfg, cfgpath_abs, 5)
             my_subcfg['src'] = str(pathlib.Path(pcfg['role_dir']) / tmp)
 
+
+    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
+        pcfg = self.get_parentcfg(cfg, cfgpath_abs, 2)
+        # normalize type
+        srctype = self._norm_srctype(cfg, my_subcfg, cfgpath_abs)
+        my_subcfg['type'] = srctype
+
+        # optionally apply unspecific type defaults if they exists
+        # optionally apply type defaults for selected srctype
+        ncfg = {}
+
+        tmp = pcfg['type_defaults'].get('all', None)
+        if tmp:
+            ncfg.update(copy.deepcopy(tmp))
+
+        tmp = pcfg['type_defaults'].get(srctype, None)
+        if tmp:
+            ncfg.update(copy.deepcopy(tmp))
+
+        merge_dicts(ncfg, my_subcfg)
+        my_subcfg = ncfg
+
+        # optionally do srctype specific normings
+        tmp = getattr(self, '_norm_type_' + srctype, None)
+
+        ansible_assert(tmp, "unsupported srctype '{}'".format(srctype))
+        tmp(cfg, my_subcfg, cfgpath_abs)
+
         return my_subcfg
+
 
 
 class DockConfNormImageMavenPackages(DockConfNormImageXPackBase):

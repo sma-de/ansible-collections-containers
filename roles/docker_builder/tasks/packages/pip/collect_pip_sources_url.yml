@@ -1,0 +1,12 @@
+---
+
+  - name: append source requirements file '{{ _pipreq_iter.value.src }}' to source file list
+    set_fact:
+      _pip_sources: >-
+         {{ _pip_sources
+          + [{'path': _pipreq_iter.value.filename,
+              'url': _pipreq_iter.value.src,
+              'id': _pipreq_iter.value.src,
+              'type': _pipreq_iter.value.type}]
+         }}
+
