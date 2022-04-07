@@ -72,6 +72,12 @@
       ansible_ssh_user: root
 
 
+  - name: remember original python interpreter
+    set_fact:
+      anspy_original: >-
+        {{ ansible_python_interpreter }}
+
+
 ##
 ## from here we switch into docker container for doing the actual build steps
 ##
@@ -477,6 +483,12 @@
     ##
     environment: >-
       {{ _cur_image_env.vars }}
+
+
+  - name: left container env, revert back to original python interpreter
+    set_fact:
+      ansible_python_interpreter: >-
+        {{ anspy_original }}
 
 
 ##
