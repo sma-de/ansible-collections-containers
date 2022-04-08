@@ -149,6 +149,11 @@
           - setup:
 
 
+        # also collect extended custom facts (e.g. java homes, pip's, ...)
+      - include_role:
+          name: smabot.base.extended_facts
+
+
 ##      - name: vars in-container
 ##        debug:
 ##          var: ansible_python_interpreter
@@ -210,8 +215,9 @@
 #     point (e.g. for custom pre install steps)
 #
 
-        # is used for collecting java installation facts and maybe more
-      - include_role: 
+        # recollect extended facts, might have changed
+        # siginificantly in the meantime (e.g. installed java package)
+      - include_role:
           name: smabot.base.extended_facts
 
 

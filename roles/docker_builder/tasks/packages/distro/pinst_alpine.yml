@@ -4,17 +4,31 @@
       _tmp_pinst_handled: true
 
 
+  - set_fact:
+      _tmp_extra_packages: {}
+
+
+    ##
+    ## notes for extra packages:
+    ##
+    ##   py3-pip -> this is necessary for ansible pip module to work
+    ##   py3-setuptools -> see above
+    ##
+    ## note.2: do this only when no pip is preinstalled
+    ##
+  - set_fact:
+      _tmp_extra_packages:
+         py3-pip:
+         py3-setuptools:
+    when: not ansible_facts.get('pypip', {}).get('installations', False)
+
+
     ##
     ## notes for os defaults:
     ##
     ##   no_cache == true 
     ##      -> we are containering here, so avoid local caches 
     ##         as much as possible
-    ##
-    ## notes for extra packages:
-    ##
-    ##   py3-pip -> this is necessary for ansible pip module to work
-    ##   py3-setuptools -> see above
     ##
   - name: >-
       standard distro package installs / removes (alpine) 
@@ -24,10 +38,8 @@
       {{ _cur_dockimg.packages.distro 
        | smabot.containers.to_psets(os_defaults={
            'no_cache': True,
-         }, extra_packages={
-             'py3-pip': None,
-             'py3-setuptools': None,
-         }, auto_version=_autovcfg_iter, os_family=ansible_os_family)
+         }, extra_packages=_tmp_extra_packages,
+         auto_version=_autovcfg_iter, os_family=ansible_os_family)
       }}
     loop_control:
       loop_var: _iter_packinst
