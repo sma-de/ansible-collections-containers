@@ -39,6 +39,7 @@
                 ##
                 DEBIAN_FRONTEND: noninteractive
 
+
             packages:
 
               distro:
@@ -67,4 +68,20 @@
                           os_overwrites:
                             alpine:
                               name: py3-pip
+
+                    ##
+                    ## opt-in default bundle for building py-pip libs
+                    ##
+                    py_deps_build:
+                      enable: false
+                      packages:
+                        build-base:
+                          ## normally we only need it during image build and it should be removed again at the end
+                          temporary: true
+                        python3-dev:
+                          temporary: true
+                        libffi-dev:
+                          temporary: true
+                        openssl-dev:
+                          temporary: true
 
