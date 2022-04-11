@@ -2,6 +2,14 @@
 
   # TODO: is there more senseable stuff to do here
 
+
+  - name: remove temporary distro packages again  ==>>  {{ _cur_dockimg.fullname }}
+    include_tasks: packages/distro/main.yml
+    vars:
+      distro_pinst_extra_args:
+        rmtmp: true
+
+
   - name: clear pip caches
     ansible.builtin.command:
       cmd: >-

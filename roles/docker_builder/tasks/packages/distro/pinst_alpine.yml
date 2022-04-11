@@ -39,7 +39,7 @@
        | smabot.containers.to_psets(os_defaults={
            'no_cache': True,
          }, extra_packages=_tmp_extra_packages,
-         auto_version=_autovcfg_iter, os_family=ansible_os_family)
+         **_tmp_pset_extra_args)
       }}
     loop_control:
       loop_var: _iter_packinst

@@ -158,6 +158,7 @@ class PSetsFilter(FilterBase):
           'auto_version': ([collections.abc.Mapping], {}),
           'grouped': ([bool], True),
           'pkg_convfn': (list(string_types), '', ['', 'maven']),
+          'rmtmp': ([bool], False),
         })
 
         return tmp
@@ -298,6 +299,8 @@ class PSetsFilter(FilterBase):
         if not isinstance(value, collections.abc.Mapping):
             raise AnsibleOptionsError("filter input must be a mapping")
 
+        rmtmp_mode = self.get_taskparam('rmtmp')
+
         packages = copy.deepcopy(value['packages'])
         pconv_fn = self.get_taskparam('pkg_convfn')
 
@@ -353,6 +356,16 @@ class PSetsFilter(FilterBase):
 
                     if os_overwrites:
                         merge_dicts(v, os_overwrites)
+
+                tmp = v.get('temporary', False)
+
+                if rmtmp_mode:
+                    if not tmp:
+                        # in temporary remove mode ignore any
+                        # non temporary packages
+                        continue
+
+                    setdefault_none(v, 'modopts', {}).update(state='absent')
 
                 # handle packages marked as auto versioned
                 is_autov = v.get('auto_versioned', False)
@@ -413,6 +426,9 @@ class PSetsFilter(FilterBase):
 
         if not grouped:
             psets = ungrouped_psets
+
+        # through filtering it is possible that we get empty psets, filter them out
+        psets = list(filter(lambda x: x.get('name', False), psets))
 
         return psets
 
