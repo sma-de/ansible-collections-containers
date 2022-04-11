@@ -644,17 +644,25 @@ class DockConfNormImageXPackBase(NormalizerBase):
 
         ## normalize single packages
         pcfg = self.get_parentcfg(cfg, cfgpath_abs)
+        final_packs = []
+
         for ps in packs:
+            nps = {}
+
             for k in ps:
                 if k[0] == '_':
+                    nps[k] = ps.get(k, None)
                     continue  # dont do magic underscore keys
 
                 v = ps[k] or {}
 
+                if v.get('disabled', False):
+                    continue
+
                 setdefault_none(v, 'name', k)
 
                 v = self._norm_single_pack_ex(cfg, my_subcfg, cfgpath_abs, v)
-                ps[k] = v
+                nps[k] = v
 
                 av = v.get('auto_versioned', False)
 
@@ -662,6 +670,12 @@ class DockConfNormImageXPackBase(NormalizerBase):
                     v['ptype'] = self.config_path[-1]
                     pcfg['auto_versioned'] = v
 
+            if nps:
+                # for the case that all of the packages of current pset
+                # are filtered out, remove the now empty pset completly
+                final_packs.append(nps)
+
+        my_subcfg['packages'] = final_packs
         return my_subcfg
 
 
