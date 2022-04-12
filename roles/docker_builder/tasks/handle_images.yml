@@ -34,6 +34,18 @@
       - include_tasks: >-
           auto_versioning/methods/{{
             _dbimg_iter.value.auto_versioning.method_type }}.yml
+        when: not _dbimg_iter.value.auto_versioning.fixed_only
+
+
+      - name: optionally add fixed auto versions to list
+        set_fact:
+          _tmp_in_versions: >-
+             {{ (_tmp_in_versions + _dbimg_iter.value.auto_versioning.fixed_versions)
+              | smabot.base.sort_versions(reverse=True,
+                   method=_dbimg_iter.value.auto_versioning.sorting.method_type,
+                   method_args=_dbimg_iter.value.auto_versioning.sorting.method_args
+                ) }}
+        when: _dbimg_iter.value.auto_versioning.get('fixed_versions', False)
 
 
       - ansible.builtin.assert:
@@ -50,7 +62,8 @@
         ##   versions sorted from new to old
         ##
       - name: >-
-          of all found potential auto versions take the last {{ dbimg_iter.value.auto_versioning.method_args.vercnt_max }}
+          of all found potential auto versions take the last
+          {{ dbimg_iter.value.auto_versioning.method_args.vercnt_max }}
         set_fact:
           _tmp_in_versions: >-
             {{ _tmp_in_versions[:_dbimg_iter.value.auto_versioning.method_args.vercnt_max] }}

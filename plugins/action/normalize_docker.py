@@ -1441,13 +1441,18 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
 
 
     def __init__(self, pluginref, *args, **kwargs):
-        self._add_defaultsetter(kwargs, 
+        self._add_defaultsetter(kwargs,
+          'fixed_only', DefaultSetterConstant(False)
+        )
+
+        self._add_defaultsetter(kwargs,
           'method_args', DefaultSetterConstant(dict())
         )
 
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
           DockConfNormImageAutoVerUpdParent(pluginref),
+          DockConfNormImageAutoVerSorting(pluginref),
           DockConfNormImageAutoVerSCMBased(pluginref),
         ]
 
@@ -1552,6 +1557,25 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
 
         norm_args_fn(margs, cfg, cfgpath_abs)
         return my_subcfg
+
+
+
+class DockConfNormImageAutoVerSorting(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'method_type', DefaultSetterConstant('int_tuples')
+        )
+
+        self._add_defaultsetter(kwargs,
+          'method_args', DefaultSetterConstant(dict())
+        )
+
+        super(DockConfNormImageAutoVerSorting, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['sorting']
 
 
 

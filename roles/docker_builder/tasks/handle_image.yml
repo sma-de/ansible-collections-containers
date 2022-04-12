@@ -23,7 +23,6 @@
     community.docker.docker_container:
       name: "{{ _bcon_name }}"
       state: absent
-    when: not (docker_build_keep_buildcon | default(False))
 
 
     # optionally handle autoversion based parent update
@@ -80,7 +79,7 @@
 
 
   - name: make build container avaible as ansible host  ==>>  {{ _dbimg_iter.value.fullname }}
-    add_host:
+    ansible.builtin.add_host:
       name: "{{ _bcon_name }}"
       ansible_connection: docker
       ansible_ssh_user: root
@@ -157,10 +156,10 @@
             ##   host context), if we do a 2nd setup without delegating 
             ##   facts afterwards, there is also no harm doing this first
             ##
-          - setup:
+          - ansible.builtin.setup:
             delegate_facts: True
 
-          - setup:
+          - ansible.builtin.setup:
 
 
         # also collect extended custom facts (e.g. java homes, pip's, ...)
@@ -213,6 +212,12 @@
         loop: "{{ _cur_dockimg.users.users | default({}, True) | dict2items() }}"
         loop_control:
           loop_var: _iter_img_users
+
+
+      - name: assure py pip is up to date  ==>>  {{ _cur_dockimg.fullname }}
+        ansible.builtin.pip:
+          name: pip
+          state: latest
 
 
 #
@@ -272,6 +277,7 @@
 
 
 ## handle certificates
+#
       - block:
 
           - name: handle extra ssl certificates
@@ -282,8 +288,8 @@
                 {{ _cur_dockimg.ssl_certs | default({}, True) }}
 
             ##
-            ## note: some ssl systems needs specific env vars set, 
-            ##   and it is totally possible we want to use them 
+            ## note: some ssl systems needs specific env vars set,
+            ##   and it is totally possible we want to use them
             ##   for the rest of docker building
             ##
           - name: add certificate related envvars
@@ -301,10 +307,6 @@
 
 
 ## handle special package managers
-
-      - debug:
-          var: _autovcfg_iter
-
 
       - name: pip package installs  ==>>  {{ _cur_dockimg.fullname }}
         ansible.builtin.pip: "{{ _iter_packinst }}" 
