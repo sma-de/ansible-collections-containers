@@ -1,0 +1,10 @@
+---
+
+  - set_fact:
+      _cur_img_parent: >-
+         {{ _cur_img_parent
+          | smabot.containers.update_parent(autover=_autovcfg_iter,
+              method=_cur_dockimg.auto_versioning.update_parent.method_type,
+              method_args=_cur_dockimg.auto_versioning.update_parent.method_args
+            ) }}
+

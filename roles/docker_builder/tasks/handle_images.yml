@@ -32,7 +32,7 @@
 
 
       - include_tasks: >-
-          auto_versioning/methods/{{ 
+          auto_versioning/methods/{{
             _dbimg_iter.value.auto_versioning.method_type }}.yml
 
 

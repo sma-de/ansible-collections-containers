@@ -198,14 +198,17 @@ def get_type_handler(scmtype, *args):
     raise AnsibleOptionsError("Unsupported scm type '{}'".format(scmtype))
 
 
-def get_docker_parent_infos(pluginref, parent_name):
+def get_docker_parent_infos(pluginref, img_cfg):
+    parent_name = img_cfg['parent']
+    parent_name = parent_name['name'] + ':' + parent_name['tag']
+
     ## note: docker_image_info will never pull an image and only 
     ##   examines local images, so we need this extra explicit pull before 
-    pluginref.exec_module('community.docker.docker_image', 
+    pluginref.exec_module('community.docker.docker_image',
       modargs={'name': parent_name, 'source': 'pull', 'force_source': True}
     )
 
-    tmp = pluginref.exec_module('community.docker.docker_image_info', 
+    tmp = pluginref.exec_module('community.docker.docker_image_info',
        modargs={'name': parent_name}
     )
 
@@ -324,6 +327,7 @@ class DockConfNormImageInstance(NormalizerNamed):
           ##   actually must interact with the ecosystem in question 
           ##   for doing proper proxy normalizing for it)
           ##
+          DockConfNormImgParent(pluginref),
           ConfigNormerProxy(pluginref, force_ecosystems=True),
           DockConfNormImageInstallMeta(pluginref),
           (DockConfNormImageSCMBased, True), # make this lazy initialized (only set it, when it already exists in input cfg)
@@ -350,7 +354,11 @@ class DockConfNormImageInstance(NormalizerNamed):
         my_subcfg['owner'] = owner
         my_subcfg['fullname'] = owner + '/' + my_subcfg['shortname']
 
-        pinfs = get_docker_parent_infos(self.pluginref, my_subcfg['parent'])
+        return my_subcfg
+
+
+    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
+        pinfs = get_docker_parent_infos(self.pluginref, my_subcfg)
 
         ##
         ## note: if we want to keep cmd and entrypoint from parent
@@ -374,10 +382,6 @@ class DockConfNormImageInstance(NormalizerNamed):
            pinfs['Config']['Entrypoint']
         )
 
-        return my_subcfg
-
-
-    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
         ## handle docker user defaulting
         get_docker_user(my_subcfg, update=True)
 
@@ -420,6 +424,54 @@ class DockConfNormImageInstance(NormalizerNamed):
 
         if tmp:
             my_subcfg['tags'] += re.split(r'\s+', tmp.strip())
+
+        return my_subcfg
+
+
+
+class DockConfNormImgParent(NormalizerBase):
+
+    ##def __init__(self, pluginref, *args, **kwargs):
+    ##    super(DockConfNormImgParent, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['parent']
+
+    @property
+    def simpleform_key(self):
+        return 'name'
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        name = my_subcfg['name']
+        tmp = name.split(':')
+        tag = my_subcfg.get('tag', None)
+
+        if len(tmp) > 1:
+            # it is allowed to specify name + tag as one string in
+            # name field in the standard format 'name:tag', if this
+            # is the case extract the parts here
+            ansible_assert(len(tmp) == 2,
+               "bad image parent name, only one ':' to split name and"\
+               " tag is allowed, but found '{}': {}".format(len(tmp), name)
+            )
+
+            ansible_assert(not tag,
+               "bad image parent definition, tag was set twice, once"\
+               " as part of name ':tag' (=> '{}') and once as explicit"\
+               " tag field (=> '{}'), use one of them but never both at"\
+               " the same time".format(name, tag)
+            )
+
+            name, tag = tmp
+        else:
+            name = tmp[0]
+
+        # if tag is unset default to latest (like docker does implicitly anyway)
+        tag = tag or 'latest'
+
+        my_subcfg['name'] = name
+        my_subcfg['tag'] = tag
 
         return my_subcfg
 
@@ -1395,6 +1447,7 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
 
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
+          DockConfNormImageAutoVerUpdParent(pluginref),
           DockConfNormImageAutoVerSCMBased(pluginref),
         ]
 
@@ -1502,6 +1555,40 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
 
 
 
+class DockConfNormImageAutoVerUpdParent(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'method_type', DefaultSetterConstant('string_template')
+        )
+
+        self._add_defaultsetter(kwargs,
+          'method_args', DefaultSetterConstant(dict())
+        )
+
+        super(DockConfNormImageAutoVerUpdParent, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['update_parent']
+
+    @property
+    def simpleform_key(self):
+        return 'enabled'
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        ##
+        ## note: as default method has only an effect when user
+        ##   explicitly added python format template stuff to
+        ##   its parent string I see no issue with defaulting this to on
+        ##
+        setdefault_none(my_subcfg, 'enabled', True)
+
+        # TODO: add method type specific norming stuff when needed
+        return my_subcfg
+
+
+
 class DockConfNormImageAutoVerSCMBased(NormalizerBase):
 
     NORMER_CONFIG_PATH = ['scm_based']
@@ -1536,7 +1623,7 @@ class DockConfNormImageAutoVerSCMBased(NormalizerBase):
 class DockConfNormImageUsersGeneric(NormalizerBase):
 
     def __init__(self, pluginref, *args, **kwargs):
-        self._add_defaultsetter(kwargs, 
+        self._add_defaultsetter(kwargs,
           'users', DefaultSetterConstant(dict())
         )
 
@@ -1554,7 +1641,7 @@ class DockConfNormImageUsersGeneric(NormalizerBase):
     def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
         # query upstream image metadata
         pinfs = get_docker_parent_infos(self.pluginref, 
-          self.get_parentcfg(cfg, cfgpath_abs)['parent']
+          self.get_parentcfg(cfg, cfgpath_abs)
         )
 
         dpu = pinfs['Config']['User']

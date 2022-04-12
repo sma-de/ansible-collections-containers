@@ -8,6 +8,7 @@
   - set_fact:
       _cur_dockimg: "{{ _dbimg_iter.value }}"
       _dbuild_meta: {}
+      _cur_img_parent: "{{ _dbimg_iter.value.parent }}"
 
 
   - name: determine build container name
@@ -25,10 +26,23 @@
     when: not (docker_build_keep_buildcon | default(False))
 
 
+    # optionally handle autoversion based parent update
+  - block:
+
+      - name: adapt parent to current handled auto version  ==>>  {{ _dbimg_iter.value.fullname }}
+        include_tasks: >-
+          auto_versioning/update_parent/methods/{{
+            _cur_dockimg.auto_versioning.update_parent.method_type }}.yml
+
+    when: >-
+      _cur_dockimg.get('auto_versioning', False)
+      and _cur_dockimg.auto_versioning.update_parent.enabled
+
+
   - name: initialize build container for  ==>>  {{ _dbimg_iter.value.fullname }}
     community.docker.docker_container:
       name: "{{ _bcon_name }}"
-      image: "{{ _cur_dockimg.parent }}"
+      image: "{{ _cur_img_parent.name ~ ':' ~ _cur_img_parent.tag }}"
       state: started
 
       ## always make sure we have the latest version of parent image

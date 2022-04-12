@@ -15,7 +15,7 @@
 
 
   - community.docker.docker_container:
-      image: "{{ _dbimg_iter.value.parent }}"
+      image: "{{ _dbimg_iter.value.parent.name ~ ':' ~  _dbimg_iter.value.parent.tag }}"
       name: tmp_get_autover_parent_image
       state: started
 

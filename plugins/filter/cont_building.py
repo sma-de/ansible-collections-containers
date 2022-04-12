@@ -615,6 +615,49 @@ class DecoToLabelsFilter(FilterBase):
         return res
 
 
+class UpdateParentFilter(FilterBase):
+
+    FILTER_ID = 'update_parent'
+
+    @property
+    def argspec(self):
+        tmp = super(UpdateParentFilter, self).argspec
+
+        tmp.update({
+          'autover': ([collections.abc.Mapping],),
+          'method': (list(string_types),),
+          'method_args': ([collections.abc.Mapping],),
+        })
+
+        return tmp
+
+
+    def _method_string_template(self, parent, av, **kwargs):
+        # this method simply does a standard python str.format operation
+        # on parent parts, doing standard python templating with version
+        # number when parent strings are templatable
+        for k,v in parent.get('auto_versioned', {}).items():
+            parent[k] = v.format(AUTOVER=av['version_in'])
+
+        return parent
+
+
+    def run_specific(self, value):
+        if not isinstance(value, collections.abc.Mapping):
+            raise AnsibleOptionsError("filter input must be a mapping")
+
+        m = self.get_taskparam('method')
+
+        tmp = getattr(self, '_method_' + m, None)
+        ansible_assert(tmp, "unsupported parent update method '{}'".format(m))
+
+        value = tmp(value, self.get_taskparam('autover'),
+          **self.get_taskparam('method_args')
+        )
+
+        return value
+
+
 
 # ---- Ansible filters ----
 class FilterModule(object):
@@ -631,6 +674,7 @@ class FilterModule(object):
            DecoToEnvFilter,
            DecoToLabelsFilter,
            PSetsFilter,
+           UpdateParentFilter,
         ]
 
         for f in tmp:
