@@ -15,7 +15,7 @@
       docker_build: "{{ _my_cfgref.docker_cfg  | smabot.base.deepcopy }}"
       _cur_dockimg: >-
         {{ _my_cfgref.docker_cfg.images
-         | ansible.utils.get_path(_my_cfgref.cfgkey)
+         | smabot.base.get_subdict(keychain=_my_cfgref.cfgkey)
         }}
       _autovcfg_iter: "{{ _my_cfgref.autover }}"
 
