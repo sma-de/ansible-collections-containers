@@ -1,0 +1,29 @@
+---
+
+  - name: record current image meta infos post build
+    set_fact:
+      _docker_build_meta: >-
+        {{ _docker_build_meta | combine(
+            {'images': {
+               hostvars[_dockhosts_iter]._cur_dockimg.fullname:
+                 hostvars[_dockhosts_iter]._cur_image_meta,
+            }},
+            recursive=True, list_merge='append'
+          )
+        }}
+
+    when: docker_build.meta.create
+    loop: "{{ groups.smabot_anscont_builders | default([], True) }}"
+    loop_control:
+      loop_var: _dockhosts_iter
+
+
+##  - debug:
+##      var: _docker_build_meta
+
+
+  - include_tasks: handle_exports.yml
+    loop: "{{ docker_build.meta.exports | dict2items() }}"
+    loop_control:
+      loop_var: _dbmeta_expiter
+

@@ -1,0 +1,118 @@
+---
+
+##
+## create build container for each item to build and make them
+## ansible hosts so that we can later connect to them and do
+## ansible stuff inside them (docker building), this runs
+## part still runs on the ansible controller
+##
+
+  - set_fact:
+      _cur_img_parent: "{{ _dbimg_iter.value.parent }}"
+
+
+    ##
+    ## note: to be able to build mutiple different versions in parallel
+    ##   we need uniqly named build containers for each of them, we
+    ##   will use a combination of name and idtag to achieve this goal
+    ##
+  - name: determine build container name
+    set_fact:
+      _bcon_name: >-
+         {{ (_cur_dockimg.fullname ~ '-builder' ~ _autovcfg_iter.idtag)
+          | replace('.', '_') | replace('/', '_')
+         }}
+
+
+  - name: remove potential old build container for  ==>>  {{ _cur_dockimg.fullname }}
+    community.docker.docker_container:
+      name: "{{ _bcon_name }}"
+      state: absent
+
+
+    # optionally handle autoversion based parent update
+  - block:
+
+      - name: adapt parent to current handled auto version  ==>>  {{ _cur_dockimg.fullname }}
+        include_tasks: >-
+          auto_versioning/update_parent/methods/{{
+            _cur_dockimg.auto_versioning.update_parent.method_type }}.yml
+
+    when: >-
+      _cur_dockimg.get('auto_versioning', False)
+      and _cur_dockimg.auto_versioning.update_parent.enabled
+
+
+  - name: initialize build container for  ==>>  {{ _cur_dockimg.fullname }}
+    community.docker.docker_container:
+      name: "{{ _bcon_name }}"
+      image: "{{ _cur_img_parent.name ~ ':' ~ _cur_img_parent.tag }}"
+      state: started
+
+      ## always make sure we have the latest version of parent image
+      pull: true
+
+      ##
+      ## note: this seems to be needed to avoid that the container 
+      ##   closes immediately
+      ##
+      tty: true
+
+      ##
+      ## note: as we literally can get anything as parent, there is 
+      ##   a chance that entrypoint is set to something custom, 
+      ##   make sure we get a shell there
+      ##
+      entrypoint: '/bin/sh'
+
+      ##
+      ## note: we need a blocking noop command here to keep the 
+      ##   container running (we will exec in it later for the 
+      ##   actual build stuff), this is the recommended way to 
+      ##   do this atm
+      ##
+      command: -c tail -f /dev/null
+
+
+    ##
+    ## note that each unique docker build container will result in a
+    ## unique ansible hosts for further image building, this is actually
+    ## very important not only for being able to build in parallel, but
+    ## also when we would build sequential where we could in theory
+    ## (and actually have done in the past) reuse the same
+    ## container / ansible host for different versions, as this
+    ## results in some peculiar issues, one example:
+    ##
+    ##   -> python interpreter auto discovery will fail when python
+    ##      bin path changes between versions (e.g.: "subclassing" from
+    ##      python:3.10 and python:3.8 respectively), the reason is that
+    ##      auto discovery is only done once per host per ansible run,
+    ##      and so ansible would "think" the host to be the same (at
+    ##      least python path wise) between different version builds,
+    ##      but actually because of different container parents the
+    ##      content might have changed considerably
+    ##
+  - name: >-
+      make build container avaible as ansible
+      host  ==>>  {{ _cur_dockimg.fullname }}
+    ansible.builtin.add_host:
+      name: "{{ _bcon_name }}"
+      groups:
+        - smabot_anscont_builders
+      ansible_connection: docker
+      ansible_ssh_user: root
+
+
+  - set_fact:
+      _contbuild_hosts: >-
+         {{ _contbuild_hosts
+          | combine({
+              _bcon_name: {
+                'connection': {'name': _bcon_name },
+                'autover': _autovcfg_iter, 'docker_cfg': docker_build,
+                'cfgkey': (_dcfg_keychain | join('.')),
+                'image_meta': _cur_image_meta
+              }
+            })
+         }}
+

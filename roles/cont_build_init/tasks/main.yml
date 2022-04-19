@@ -71,8 +71,8 @@
       name: smabot.containers.normalize_docker
 
 
-  - set_fact:
-      smabot_containers_docker_builder_role_path: "{{ role_path }}"
+##  - set_fact:
+##      smabot_containers_docker_build_init_role_path: "{{ role_path }}"
 
 
     # optionally collect build meta informations like 
@@ -103,8 +103,8 @@
 ##      var: _docker_build_meta
 
 
-  - include_tasks: handle_exports.yml
-    loop: "{{ docker_build.meta.exports | dict2items() }}"
-    loop_control:
-      loop_var: _dbmeta_expiter
+##  - include_tasks: handle_exports.yml
+##    loop: "{{ docker_build.meta.exports | dict2items() }}"
+##    loop_control:
+##      loop_var: _dbmeta_expiter
 

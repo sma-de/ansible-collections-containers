@@ -1,190 +1,98 @@
 ---
 
 ##
-## the first part of docker build process runs in the context 
-## of the docker build slave host / ansible controller
+## the actual build steps inside the container to create,
+## default context is execed into container to build
 ##
 
   - set_fact:
-      _cur_dockimg: "{{ _dbimg_iter.value }}"
+      _my_cfgref: "{{ hostvars.localhost._contbuild_hosts[ansible_host] }}"
+      _bcon_name: "{{ ansible_host }}"
+      smabot_containers_docker_builder_role_path: "{{ role_path }}"
+
+
+  - set_fact:
+      docker_build: "{{ _my_cfgref.docker_cfg  | smabot.base.deepcopy }}"
+      _cur_dockimg: >-
+        {{ _my_cfgref.docker_cfg.images
+         | ansible.utils.get_path(_my_cfgref.cfgkey)
+        }}
+      _autovcfg_iter: "{{ _my_cfgref.autover }}"
+
+
+  - set_fact:
       _dbuild_meta: {}
-      _cur_img_parent: "{{ _dbimg_iter.value.parent }}"
+      _cur_image_meta: "{{ _my_cfgref.image_meta | smabot.base.deepcopy }}"
+      _cur_image_deco: "{{ _cur_dockimg.decorations }}"
+
+      _cur_image_labels: >-
+         {{ _cur_dockimg.docker_labels | default({}, True) }}
+
+      _cur_image_env: >-
+         {{ {} | smabot.containers.append_contenv(
+              new_vars=(_cur_dockimg.environment.static
+                | default({}, True)
+              ) 
+            )
+          | smabot.containers.append_contenv(
+              new_vars=(_cur_dockimg.proxy.vars | default(None))
+            )
+         }}
 
 
-  - name: determine build container name
+  - name: decorate image with auto-version data
     set_fact:
-      _bcon_name: "{{ _cur_dockimg.shortname }}-builder"
+      _cur_image_deco: >-
+        {{ _cur_image_deco
+         | smabot.containers.add_deco(
+             key='contimg_verin', value=_autovcfg_iter.version_in,
+             add_env=['CONTIMG_VERSION_IN'],
+             add_label=['org.opencontainers.image.version']
+           )
+         | smabot.containers.add_deco(
+             key='contimg_idtag', value=_autovcfg_iter.idtag,
+             add_env=['CONTIMG_IDTAG'],
+             add_label=['contimage.self.idtag']
+           )
+        }}
 
-  - set_fact:
-      _build_img_tmpname: "{{ _bcon_name }}-tmpimg"
-
-
-  - name: remove potential old build container for  ==>>  {{ _dbimg_iter.value.fullname }}
-    community.docker.docker_container:
-      name: "{{ _bcon_name }}"
-      state: absent
-
-
-    # optionally handle autoversion based parent update
-  - block:
-
-      - name: adapt parent to current handled auto version  ==>>  {{ _dbimg_iter.value.fullname }}
-        include_tasks: >-
-          auto_versioning/update_parent/methods/{{
-            _cur_dockimg.auto_versioning.update_parent.method_type }}.yml
-
-    when: >-
-      _cur_dockimg.get('auto_versioning', False)
-      and _cur_dockimg.auto_versioning.update_parent.enabled
-
-
-  - name: initialize build container for  ==>>  {{ _dbimg_iter.value.fullname }}
-    community.docker.docker_container:
-      name: "{{ _bcon_name }}"
-      image: "{{ _cur_img_parent.name ~ ':' ~ _cur_img_parent.tag }}"
-      state: started
-
-      ## always make sure we have the latest version of parent image
-      pull: true
-
-      ##
-      ## note: this seems to be needed to avoid that the container 
-      ##   closes immediately
-      ##
-      tty: true
-
-      ##
-      ## note: as we literally can get anything as parent, there is 
-      ##   a chance that entrypoint is set to something custom, 
-      ##   make sure we get a shell there
-      ##
-      entrypoint: '/bin/sh'
-
-      ##
-      ## note: we need a blocking noop command here to keep the 
-      ##   container running (we will exec in it later for the 
-      ##   actual build stuff), this is the recommended way to 
-      ##   do this atm
-      ##
-      command: -c tail -f /dev/null
-
-
-##  - name: vars pre container
-##    debug:
-##      var: ansible_python_interpreter
-##
-##  - name: vars pre container
-##    debug:
-##      var: ansible_facts
-
-
-  - name: make build container avaible as ansible host  ==>>  {{ _dbimg_iter.value.fullname }}
-    ansible.builtin.add_host:
-      name: "{{ _bcon_name }}"
-      ansible_connection: docker
-      ansible_ssh_user: root
-
-
-  - name: remember original python interpreter
-    set_fact:
-      anspy_original: >-
-        {{ ansible_python_interpreter }}
-
-
-##
-## from here we switch into docker container for doing the actual build steps
-##
 
   - name: container build steps
     block:
 
+
     ##
-    ## note: as we handle docker images / container as standard ansible remote hosts, we need to have python installed there, this means that any image build by this setup will contain a python installation as we will keep it installed because it is not unlikely that the user might want to install python herself as part of her plan for the image and it would be very hard to decide if python was only installed because of ansible or because it really was requested by image setup
-    ## if for a specific image the builder really, really dont want python in it we will provide a custom flag to set to force removing python again when building is through
+    ## note: as we handle docker images / container as standard
+    ##   ansible remote hosts, we need to have python installed there,
+    ##   this means that any image build by this setup will contain a
+    ##   python installation as we will keep it installed because it
+    ##   is not unlikely that the user might want to install python
+    ##   herself as part of her plan for the image and it would be
+    ##   very hard to decide if python was only installed because
+    ##   of ansible or because it really was requested by image setup
+    ##
+    ## if for a specific image the builder really, really dont want
+    ## python in it we will provide a custom flag to set to force
+    ## removing python again when building is through
     ##
 
       - name: bootstrap container system for ansible usage
         include_tasks: bootstrapping/main.yml
+
 
         ##
         ## note: standard facts gathering does not work because 
         ##   python is needed for it, luckily it can be called 
         ##   later explicitly like a normal module
         ##
-        ## update: how delegations effects (ansible) facts is not 
-        ##   that easy to understand, here some observations made by 
-        ##   testing:
-        ##
-        ##                             with delegate_facts   ||   without delegate_facts
-        ##
-        ##     ansible_facts              docker host                  docker host
-        ##     ansible_os_family          docker host                  container
-        ##     inventory_hostname         docker host                  docker host
-        ##     ansible_env                docker host??                container
-        ##     ansible_host               container                    container
-        ##     package module             container                    container
-        ##
-        ##
-        ##   further observations:  
-        ##
-        ##     -> when delegate_facts is set at block level, package 
-        ##        module starts to thing being @docker host for some 
-        ##        reason than
-        ##
-        ##
-        ##   implication:
-        ##
-        ##     dont use delegate_facts but simply rerun setup after 
-        ##     container section was handled to reset facts to docker 
-        ##     host properly, in this scenario things like 
-        ##     ansible_os_family and the package module behave correctly 
-        ##     inside the container, but we still might get 
-        ##     errors / strange bugs because ansible_facts itself is 
-        ##     never set to container mode
-        ##
-        ##       => update: cannot confirm this anymore, it totally
-        ##            seems that ansible_facts is adapted to container host properly
-        ##
-      - name: gather facts for  ==>>  {{ _dbimg_iter.value.fullname }}
-        block:
-
-            ##
-            ## update: actually, doing setup with delegate_facts has 
-            ##   one advantadge, it makes ansible_facts (container-context) 
-            ##   principally avaible per hostvars[ansible_host] (as said 
-            ##   before, ansible_facts var seems to say always at docker 
-            ##   host context), if we do a 2nd setup without delegating 
-            ##   facts afterwards, there is also no harm doing this first
-            ##
-          - ansible.builtin.setup:
-            delegate_facts: True
-
-          - ansible.builtin.setup:
+      - name: gather facts for  ==>>  {{ _cur_dockimg.fullname }}
+        ansible.builtin.setup:
 
 
         # also collect extended custom facts (e.g. java homes, pip's, ...)
       - include_role:
           name: smabot.base.extended_facts
 
-
-##      - name: vars in-container
-##        debug:
-##          var: ansible_python_interpreter
-##
-##      - name: vars in-container
-##        debug:
-##          var: ansible_facts
-
-
-        ##
-        ## note: while ansible_facts, os_family and co are properly
-        ##   updated to container env for some vars it seems still
-        ##   necessary to do this ourselves
-        ##
-      - name: adapt ansible special vars to container env
-        set_fact:
-          ansible_python_interpreter: >-
-            {{ ansible_facts.python.executable }}
 
 ## handle docker copy
       - include_role:
@@ -207,7 +115,7 @@
 
 
 # handle user accounts
-      - name: handle user '{{ _iter_img_users.key }}'  ==>>  {{ _dbimg_iter.value.fullname }}
+      - name: handle user '{{ _iter_img_users.key }}'  ==>>  {{ _cur_dockimg.fullname }}
         ansible.builtin.user: "{{ _iter_img_users.value.config }}"
         loop: "{{ _cur_dockimg.users.users | default({}, True) | dict2items() }}"
         loop_control:
@@ -427,7 +335,7 @@
 ## do dynamic env
 
 
-      - name: set container $USER envvar to configured docker_user  ==>>  {{ _dbimg_iter.value.fullname }}
+      - name: set container $USER envvar to configured docker_user  ==>>  {{ _cur_dockimg.fullname }}
         set_fact:
           _cur_image_env: >-
              {{ _cur_image_env | smabot.containers.append_contenv(
@@ -441,15 +349,15 @@
       ## note: as always atm direct uppdating per ansfact return is broken, 
       ##   so we use here also a workaround role for now
       ##
-          ## - name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
-          ##   smabot.containers.compute_container_env:
-          ##     config_ansvar: '_cur_dockimg'
+       ## - name: determine final environment (vars) for image  ==>>  {{ _cur_dockimg.fullname }}
+       ##   smabot.containers.compute_container_env:
+       ##     config_ansvar: '_cur_dockimg'
 
       - include_role:
           name: smabot.containers.compute_container_env
         vars:
           compute_contenv_args:
-            task_name: determine final environment (vars) for image  ==>>  {{ _dbimg_iter.value.fullname }}
+            task_name: determine final environment (vars) for image  ==>>  {{ _cur_dockimg.fullname }}
             config_ansvar: _cur_dockimg
             modify_path: "{{ _cur_dockimg.sys_path }}"
             extra_envs:
@@ -484,110 +392,109 @@
             }}
         when: docker_build.meta.create
 
-
-    ##
-    ## switch ansible context into the docker builder container 
-    ## by using the delegate mechanism (as using "hosts:" 
-    ## only works for top level playbooks)
-    ##
-    delegate_to: "{{ _bcon_name }}"
-
-    ##
-    ## make at least part of final image environment also avaible 
-    ## during build phase, this is important for stuff like proxies
-    ##
-    ## note: environment seems to use actually a direct reference 
-    ##   of the passed dict (not a copy of it), which means if we 
-    ##   update this dict later during build these envvars are 
-    ##   immediately avaible for following module calls, which 
-    ##   than means we dont need extra nested blocks every time 
-    ##   we update environment variables
-    ##
+       ##
+       ## make at least part of final image environment also avaible 
+       ## during build phase, this is important for stuff like proxies
+       ##
+       ## note: environment seems to use actually a direct reference 
+       ##   of the passed dict (not a copy of it), which means if we 
+       ##   update this dict later during build these envvars are 
+       ##   immediately avaible for following module calls, which 
+       ##   than means we dont need extra nested blocks every time 
+       ##   we update environment variables
+       ##
     environment: >-
       {{ _cur_image_env.vars }}
 
 
-  - name: left container env, revert back to original python interpreter
-    set_fact:
-      ansible_python_interpreter: >-
-        {{ anspy_original }}
-
-
 ##
-## finally for committing and pushing we switch back to docker host
+## finally for committing and pushing we switch back to docker host / ansible controller
 ##
-  - name: reset facts to docker host machine
-    setup:
+
+  - name: post build steps
+    block:
+
+      ##- name: left container env, revert back to original python interpreter
+      ##  set_fact:
+      ##    ansible_python_interpreter: >-
+      ##      {{ anspy_original }}
 
 
-  - name: save build container to image  ==>>  {{ _dbimg_iter.value.fullname }}
-    smabot.containers.docker_commit:
-      container: "{{ _bcon_name }}" ## id or tag, mandatory
-      image_name: "{{ _build_img_tmpname }}" ## image name, mandatory
-      ##image_tag: ## optional, defaults to docker default (latest)
+      ##- name: reset facts to docker host machine
+      ##  ansible.builtin.setup:
 
-      ## if image already exists, it will not be overwritten unless 
-      ## force is set, existing here means simply something with given 
-      ## image name + tag exist already on docker node or is pullable
-      force: True
+      - set_fact:
+          _build_img_tmpname: "{{ _bcon_name }}-tmpimg"
 
-      authors: "{{ _cur_dockimg.authors | default(omit, true) }}"
+      - name: save build container to image  ==>>  {{ _cur_dockimg.fullname }}
+        smabot.containers.docker_commit:
+          container: "{{ _bcon_name }}" ## id or tag, mandatory
+          image_name: "{{ _build_img_tmpname }}" ## image name, mandatory
+          ##image_tag: ## optional, defaults to docker default (latest)
 
-      ## TODO: complete keywords
-      docker_keywords:
-        ## 1:1 analogous to dockerfile statements with the same name, all optional
-        CMD: "{{ _cur_dockimg.docker_cmd }}"
-        ENTRYPOINT: "{{ _cur_dockimg.entrypoint }}"
-        ENV: "{{ _cur_dockimg.environment.static | default(omit, True) }}"
-        EXPOSE: "{{ _cur_dockimg.expose | default(omit, True) }}"
-        LABEL: "{{ _cur_image_labels }}"
-        USER: "{{ _cur_dockimg.docker_user }}"
-        WORKDIR: "{{ _cur_dockimg.workdir | default(omit, True) }}"
+          ## if image already exists, it will not be overwritten unless 
+          ## force is set, existing here means simply something with given 
+          ## image name + tag exist already on docker node or is pullable
+          force: True
 
+          authors: "{{ _cur_dockimg.authors | default(omit, true) }}"
 
-  - name: remove build container for  ==>>  {{ _dbimg_iter.value.fullname }}
-    docker_container:
-      name: "{{ _bcon_name }}"
-      state: absent
-    when: not (docker_build_keep_buildcon | default(False))
-
-
-  - set_fact:
-      _build_tags: []
-
-    ##
-    ## note: atm when handling a batch of multiple "variant" builds (autoversioning) only add custom fixed preset tags to "latest" version
-    ## TODO: do we need the possibility here to finetune this more???
-    ##
-  - set_fact:
-      _build_tags: "{{ _build_tags + _cur_dockimg.tags }}"
-    when: _autovcfg_iter.latest
-
-  - set_fact:
-      _build_tags: "{{ _autovcfg_iter.tags + _build_tags }}"
-    when: _autovcfg_iter.tags | default(False, True)
-
-  - name: >-
-      no explicit tags for this build found, so build default 
-      tag latest  ==>>  {{ _dbimg_iter.value.fullname }}
-    set_fact:
-      _build_tags: ['latest']
-    when: not _build_tags
+          ## TODO: complete keywords
+          docker_keywords:
+            ## 1:1 analogous to dockerfile statements with the same name, all optional
+            CMD: "{{ _cur_dockimg.docker_cmd }}"
+            ENTRYPOINT: "{{ _cur_dockimg.entrypoint }}"
+            ENV: "{{ _cur_dockimg.environment.static | default(omit, True) }}"
+            EXPOSE: "{{ _cur_dockimg.expose | default(omit, True) }}"
+            LABEL: "{{ _cur_image_labels }}"
+            USER: "{{ _cur_dockimg.docker_user }}"
+            WORKDIR: "{{ _cur_dockimg.workdir | default(omit, True) }}"
 
 
-  - include_tasks: postbuild_tasks.yml
-    loop: "{{ _build_tags }}"
-    loop_control:
-      loop_var: _btag_iter
+      - name: remove build container for  ==>>  {{ _cur_dockimg.fullname }}
+        community.docker.docker_container:
+          name: "{{ 'TODO' }}"
+          state: absent
+        when: not (docker_build_keep_buildcon | default(False))
 
 
-  - set_fact:
-      _cur_image_meta: >-
-        {{ _cur_image_meta | combine({'builds': [_dbuild_meta]},
-            recursive=True, list_merge='append')
-        }}
-    when: docker_build.meta.create
+      - set_fact:
+          _build_tags: []
 
+        ##
+        ## note: atm when handling a batch of multiple "variant" builds (autoversioning) only add custom fixed preset tags to "latest" version
+        ## TODO: do we need the possibility here to finetune this more???
+        ##
+      - set_fact:
+          _build_tags: "{{ _build_tags + _cur_dockimg.tags }}"
+        when: _autovcfg_iter.latest
+
+      - set_fact:
+          _build_tags: "{{ _autovcfg_iter.tags + _build_tags }}"
+        when: _autovcfg_iter.tags | default(False, True)
+
+      - name: >-
+          no explicit tags for this build found, so build default 
+          tag latest  ==>>  {{ _cur_dockimg.fullname }}
+        set_fact:
+          _build_tags: ['latest']
+        when: not _build_tags
+
+
+      - include_tasks: postbuild_tasks.yml
+        loop: "{{ _build_tags }}"
+        loop_control:
+          loop_var: _btag_iter
+
+
+      - set_fact:
+          _cur_image_meta: >-
+            {{ _cur_image_meta | combine({'builds': [_dbuild_meta]},
+                recursive=True, list_merge='append')
+            }}
+        when: docker_build.meta.create
+
+    delegate_to: localhost
 
 ##   - include_role: 
 ##       name: hashicorp_vault_sma_login
@@ -622,10 +529,10 @@
 ## 
 ## ## TODO: for some reason this always fails with useless error message unknown:unknown
 ## ## TODO: maybe do this in the working jenkins context
-## ##  - name: tag and push to registry  ==>>  {{ _dbimg_iter.value.fullname }}
+## ##  - name: tag and push to registry  ==>>  {{ _cur_dockimg.fullname }}
 ## ##    docker_image:
-## ##      name: "{{ _dbimg_iter.value.fullname }}"
-## ##      repository: "repositories.developer.sunnyportal.com:5000/{{ _dbimg_iter.value.fullname }}"
+## ##      name: "{{ _cur_dockimg.fullname }}"
+## ##      repository: "repositories.developer.sunnyportal.com:5000/{{ _cur_dockimg.fullname }}"
 ## ##      ##tag: 7
 ## ##      force_tag: yes # might be necessary to overwrite existing images
 ## ##      push: yes

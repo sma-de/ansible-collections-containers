@@ -1,0 +1,106 @@
+---
+
+  - hosts: localhost
+    tasks:
+
+      - set_fact:
+          _tmp_pre_init_roles: >-
+            {{ smabot_containers_pre_init_roles | default([], True) }}
+
+
+      - block:
+
+          - set_fact:
+              _tmp_pre_init_roledirs: []
+
+          - name: >-
+              check if envvar 'SMABOT_CONTAINERS_PREINIT_ROLEDIRS' for
+              autodiscovery base dir is set
+            set_fact:
+              _tmp_pre_init_roledirs: >-
+                {{ _tmp_pre_init_roledirs | smabot.base.listadd(
+                      lists=([lookup('env', 'SMABOT_CONTAINERS_PREINIT_ROLEDIRS')
+                        | default(None, True)]),
+                      optional=True, split=':'
+                   )
+                }}
+
+          - name: check if ansible.cfg has a default role path defined
+            set_fact:
+              _tmp_pre_init_roledirs: >-
+                {{ _tmp_pre_init_roledirs | smabot.base.listadd(
+                      lists=([lookup('config', 'DEFAULT_ROLES_PATH')
+                        | default(None, True)]), optional=True
+                   )
+                }}
+
+          # TODO: maybe do a final fallback to cwd??
+
+
+          - block:
+
+              ##
+              ## we expect found dir to be a standard ansible role
+              ## dir, so any subdir is interpreted as ansible role
+              ##
+              - name: >-
+                  find roles (dirs) matching conventional prefix 'contimg_*'
+                ansible.builtin.find:
+                  paths: "{{ _tmp_pre_init_roledirs }}"
+                  recurse: no
+                  use_regex: no
+                  patterns:
+                    - contimg_*
+                  file_type: directory
+                register: _tmp_matching_dirs
+
+              - set_fact:
+                  _tmp_pre_init_roles: >-
+                     {{ _tmp_matching_dirs.files | map(attribute='path')
+                      | map('basename') | list }}
+                when: _tmp_matching_dirs.matched > 0
+
+            when: _tmp_pre_init_roledirs
+
+
+        when: not _tmp_pre_init_roles
+
+
+      - name: optionally run custom pre init roles
+        include_role:
+          name: "{{ _pre_init_roles_iter }}"
+        loop: "{{ _tmp_pre_init_roles }}"
+        loop_control:
+          loop_var: _pre_init_roles_iter
+
+
+      - name: prepare container image builds
+        include_role:
+          name: smabot.containers.cont_build_init
+
+
+    ##
+    ## switch ansible context into the docker builder container 
+    ## by using the in init created dynamic host group where
+    ## each host is a docker build container
+    ##
+    ## note: we disabled default fact gathering here, not because
+    ##   we do not want it, but because it needs python installed
+    ##   on target and we cannot guarantee that the parents of
+    ##   images to build have python pre installed, but dont worry,
+    ##   we simply start fact gathering explicitly inside builder
+    ##   role after we bootstrapped a python installation when necessary
+    ##
+  - hosts: smabot_anscont_builders
+    gather_facts: False
+    roles:
+      - smabot.containers.cont_builder
+
+
+  - hosts: localhost
+    tasks:
+
+      - include_role:
+          name: smabot.containers.cont_build_init
+          tasks_from: post_build
+
