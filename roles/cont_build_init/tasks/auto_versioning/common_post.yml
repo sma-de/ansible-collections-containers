@@ -14,9 +14,9 @@
          version_in: "{{ _autovcfg_iter }}"
 
 
-    # TODO: optionally allow to disable default version tags ?? (only build idtags)
   - set_fact:
       _tmp_build_tags: "{{ _tmp_build_tags + [_autovcfg_iter] }}"
+    when: _cur_dockimg.auto_versioning.default_tags
 
 
   - name: optionally append scm timestamp to idtag when avaible
@@ -30,7 +30,9 @@
     ## add scm suffixed idtag to tags to build
   - set_fact:
       _tmp_build_tags: "{{ _tmp_build_tags + [_tmp_idtag] }}"
-    when: _tmp_idtag != _autovcfg_iter
+    when: >-
+      _cur_dockimg.auto_versioning.default_tags
+      and _tmp_idtag != _autovcfg_iter
 
 
 ##  - name: decorate image with auto-version data

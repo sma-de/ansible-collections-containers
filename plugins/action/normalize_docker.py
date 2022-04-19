@@ -1446,6 +1446,10 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
         )
 
         self._add_defaultsetter(kwargs,
+          'default_tags', DefaultSetterConstant(True)
+        )
+
+        self._add_defaultsetter(kwargs,
           'method_args', DefaultSetterConstant(dict())
         )
 
