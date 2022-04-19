@@ -55,6 +55,7 @@
              add_label=['contimage.self.idtag']
            )
         }}
+    when: _autovcfg_iter.get('version_in', False)
 
 
   - name: container build steps
