@@ -454,7 +454,7 @@
 
       - name: remove build container for  ==>>  {{ _cur_dockimg.fullname }}
         community.docker.docker_container:
-          name: "{{ 'TODO' }}"
+          name: "{{ _bcon_name }}"
           state: absent
         when: not (docker_build_keep_buildcon | default(False))
 
