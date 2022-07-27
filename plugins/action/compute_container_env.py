@@ -135,11 +135,11 @@ class DockInstEnvHandler(NormalizerBase):
 
         for (k, v) in iteritems(dynenv.get('expand', {})):
             # use standard env shelling mechanism for expanding env vars
-            tmp[k] = 'echo "{}"'.format(v)
+            tmp[k] = 'echo {}'.format(v)
 
         if modpath:
             # get currently set path on image to build
-            tmp['PATH'] = 'echo "{}"'.format('$PATH')
+            tmp['PATH'] = 'echo {}'.format('$PATH')
 
         if tmp:
             handle_shellers(tmp, env_keys, resmap)
