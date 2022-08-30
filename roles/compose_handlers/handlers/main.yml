@@ -1,0 +1,10 @@
+---
+
+    ##
+    ## note: to realise a single handler which should run multiple
+    ##   tasks in sequence we can use include_tasks
+    ##
+  - ansible.builtin.include_tasks: >-
+      {{ role_path }}/handlers/restart_dockcompose_impl.yml
+    listen: "restart docker compose project"
+

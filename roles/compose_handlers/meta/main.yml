@@ -1,0 +1,11 @@
+---
+
+  dependencies:
+
+      ## note: only necessary because of handler include_role problematic, remove it when this changes
+    - role: smabot.base.wait_until_webservice_ready
+
+      ## note: we only want to import this roles handlers, not execute
+      ##   its tasks here, this can be done with a standard when condition
+      when: false
+
