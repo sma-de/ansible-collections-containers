@@ -379,7 +379,21 @@ class DockConfNormImageInstance(NormalizerNamed):
         )
 
         setdefault_none(my_subcfg, 'entrypoint',
-           pinfs['Config']['Entrypoint']
+           pinfs['Config']['Entrypoint'] or [
+             ##
+             ## note: entrypoint setting is a point which differs a
+             ##   bit more compared to docker build, there is no real
+             ##   possibility with docker committing to not set / unset
+             ##   entrypoint, and on default it sets something which does
+             ##   not work like most docker using programs expects images
+             ##   to behave on default, so setting it explicitly to this
+             ##   here mimics default docker builder behaviour imho quite
+             ##   closely, as default it can obviously be overwritten by
+             ##   images which want this
+             ##
+             "/bin/sh",
+             "-c",
+           ]
         )
 
         ## handle docker user defaulting
