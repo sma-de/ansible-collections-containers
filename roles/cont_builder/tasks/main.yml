@@ -35,7 +35,8 @@
               ) 
             )
           | smabot.containers.append_contenv(
-              new_vars=(_cur_dockimg.proxy.vars | default(None))
+              new_vars=(_cur_dockimg.proxy.ecosystems.build_time.vars
+                | default(None))
             )
          }}
 
@@ -363,6 +364,7 @@
             modify_path: "{{ _cur_dockimg.sys_path }}"
             extra_envs:
               - "{{ _cur_image_env.vars }}"
+              - "{{ _cur_dockimg.proxy.vars | default({}) }}"
               - "{{ _cur_image_deco | smabot.containers.deco_to_env }}"
             extra_syspath:
               - "{{ _cur_image_env.syspath }}"   ## | default({}, True) }}"
