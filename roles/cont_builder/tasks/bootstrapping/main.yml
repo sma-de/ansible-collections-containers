@@ -28,8 +28,8 @@
 
       - set_fact:
           _tmp_bootstrap_env: >- 
-            {{ _tmp_bootstrap_env | combine(_cur_dockimg.proxy.vars) }}
-        when: _cur_dockimg.proxy.vars is truthy
+            {{ _tmp_bootstrap_env | combine(_cur_dockimg.proxy.eco_systems.build_time.vars) }}
+        when: _cur_dockimg.proxy.eco_systems.build_time.vars is truthy
 
 
       - name: container bootstrapping  ==>>  try {{ _iter_bstrapper }}
