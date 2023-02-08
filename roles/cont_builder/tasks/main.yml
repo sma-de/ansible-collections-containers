@@ -35,8 +35,8 @@
               ) 
             )
           | smabot.containers.append_contenv(
-              new_vars=(_cur_dockimg.proxy.ecosystems.build_time.vars
-                | default(None))
+              new_vars=(_cur_dockimg.proxy.eco_systems.build_time.vars
+                | default({}))
             )
          }}
 
