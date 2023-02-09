@@ -7,7 +7,7 @@ import collections
 
 from ansible.errors import AnsibleOptionsError, AnsibleModuleError##, AnsibleError
 ####from ansible.module_utils._text import to_native
-from ansible.module_utils.six import iteritems##, string_types
+from ansible.module_utils.six import iteritems, string_types
 
 from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.base import ConfigNormalizerBase, NormalizerBase, NormalizerNamed
 from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.proxy import ConfigNormerProxy
