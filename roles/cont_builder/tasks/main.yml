@@ -22,6 +22,7 @@
 
   - set_fact:
       _dbuild_meta: {}
+      _java_proxy_env: {}
       _cur_image_meta: "{{ _my_cfgref.image_meta | smabot.base.deepcopy }}"
       _cur_image_deco: "{{ _cur_dockimg.decorations }}"
 
@@ -154,10 +155,13 @@
 
           - name: add java proxy envvars when appropriate
             set_fact:
+              _java_proxy_env: >-
+                 {{ _cur_dockimg.proxy.eco_systems.java.envvars
+                  | default({}) }}
               _cur_image_env: >-
                  {{ _cur_image_env | smabot.containers.append_contenv(
-                      new_vars=(_cur_dockimg.proxy.eco_systems.java.envvars
-                        | default(None)
+                      new_vars=(_cur_dockimg.proxy.eco_systems.java_buildtime.envvars
+                        | default({})
                       ), strategy='combine'
                     )
                  }}
@@ -187,7 +191,7 @@
 
 
 ## handle certificates
-#
+
       - block:
 
           - name: handle extra ssl certificates
@@ -207,7 +211,7 @@
               _cur_image_env: >-
                  {{ _cur_image_env | smabot.containers.append_contenv(
                       new_vars=(handle_system_certs_result.envvars
-                        | default(None)
+                        | default({})
                       )
                     )
                  }}
@@ -365,6 +369,7 @@
             extra_envs:
               - "{{ _cur_image_env.vars }}"
               - "{{ _cur_dockimg.proxy.vars | default({}) }}"
+              - "{{ _java_proxy_env }}"
               - "{{ _cur_image_deco | smabot.containers.deco_to_env }}"
             extra_syspath:
               - "{{ _cur_image_env.syspath }}"   ## | default({}, True) }}"
