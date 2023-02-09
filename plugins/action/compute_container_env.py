@@ -111,7 +111,7 @@ class DockInstEnvHandler(NormalizerBase):
         constenv = get_subdict(my_subcfg, ['static'], default_empty=True)
         constenv.clear()
 
-        env_keys = {}
+        env_keys = set()
 
         for xenv in self.pluginref.get_taskparam('extra_envs'):
             for (k, v) in iteritems(xenv):
