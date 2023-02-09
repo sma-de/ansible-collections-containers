@@ -88,14 +88,17 @@ class DockInstEnvHandler(NormalizerBase):
 
 
     def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
-        def add_new_envkey(k, v, resmap, keylist):
-            if k in keylist:
-                raise AnsibleOptionsError(
-                  "duplicate environment key '{}'".format(k)
-                )
+        handle_dups = self.pluginref.get_taskparam('duplicate_keys')
+
+        def add_new_envkey(k, v, resmap, keys, handle_dups=handle_dups):
+            if k in keys:
+                if handle_dups == 'error':
+                    raise AnsibleOptionsError(
+                      "duplicate environment key '{}'".format(k)
+                    )
 
             resmap[k] = v
-            keylist.append(k)
+            keys.add(k)
 
         def handle_shellers(shellmap, env_keys, resmap):
             for (k, v) in iteritems(shellmap):
@@ -108,7 +111,7 @@ class DockInstEnvHandler(NormalizerBase):
         constenv = get_subdict(my_subcfg, ['static'], default_empty=True)
         constenv.clear()
 
-        env_keys = []
+        env_keys = {}
 
         for xenv in self.pluginref.get_taskparam('extra_envs'):
             for (k, v) in iteritems(xenv):
@@ -193,6 +196,7 @@ class ActionModule(ConfigNormalizerBase):
           'extra_envs': ([[collections.abc.Mapping]], []),
           'modify_path': ([collections.abc.Mapping], {}),
           'extra_syspath': ([[collections.abc.Mapping]], []),
+          'duplicate_keys': (list(string_types), ['error'], ['overwrite', 'error']),
         })
 
         return tmp
