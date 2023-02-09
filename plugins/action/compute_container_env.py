@@ -196,7 +196,7 @@ class ActionModule(ConfigNormalizerBase):
           'extra_envs': ([[collections.abc.Mapping]], []),
           'modify_path': ([collections.abc.Mapping], {}),
           'extra_syspath': ([[collections.abc.Mapping]], []),
-          'duplicate_keys': (list(string_types), ['error'], ['overwrite', 'error']),
+          'duplicate_keys': (list(string_types), 'error', ['overwrite', 'error']),
         })
 
         return tmp
