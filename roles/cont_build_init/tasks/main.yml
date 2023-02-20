@@ -79,6 +79,7 @@
     # the complete names of build images and similar
   - set_fact:
       _docker_build_meta: {}
+      _contbuild_hosts: {}
     when: docker_build.meta.create
 
 

@@ -3,8 +3,7 @@
   - set_fact:
        _auto_versions: [{'latest': True, 'idtag': ''}]
        _cur_dockimg: "{{ _dbimg_iter.value }}"
-       _dcfg_keychain: "{{ _dcfg_keychain + [_dbimg_iter.key] }}"
-       _contbuild_hosts: {}
+       _dcfg_keychain: "{{ [_dbimg_owner_iter.key, _dbimg_iter.key] }}"
        _cur_image_meta: {}
 ##       _cur_image_deco: "{{ _dbimg_iter.value.decorations }}"
 ##

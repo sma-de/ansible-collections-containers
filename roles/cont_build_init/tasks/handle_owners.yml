@@ -5,10 +5,6 @@
     ##   over there images
     ##
 
-  - set_fact:
-      _dcfg_keychain: "{{ [_dbimg_owner_iter.key] }}"
-
-
   - include_tasks: handle_images.yml
     loop: >-
       {{ _dbimg_owner_iter.value | dict2items() }}
