@@ -1671,6 +1671,7 @@ class DockConfNormImageUsersGeneric(NormalizerBase):
 
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
+          DockConfNormImageFallbackUser(pluginref),
           DockConfNormImageUsersList(pluginref),
         ]
 
@@ -1680,7 +1681,7 @@ class DockConfNormImageUsersGeneric(NormalizerBase):
     def config_path(self):
         return ['users']
 
-    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
         # query upstream image metadata
         pinfs = get_docker_parent_infos(self.pluginref, 
           self.get_parentcfg(cfg, cfgpath_abs)
@@ -1689,7 +1690,7 @@ class DockConfNormImageUsersGeneric(NormalizerBase):
         dpu = pinfs['Config']['User']
 
         ddu = my_subcfg.get('docker_default_user', None) or {}
-        dfu = my_subcfg.get('docker_fallback_user', None) or {}
+        dfu = my_subcfg['docker_fallback_user']
 
         if dpu:
             # if upstream / parent image has a user set, use that 
@@ -1707,7 +1708,25 @@ class DockConfNormImageUsersGeneric(NormalizerBase):
             my_subcfg['docker_default_user'] = dpu
             my_subcfg['users'][dpu] = ddu
 
+        # convert given user / groups config intp upstream module
+        # expected format
+        users = my_subcfg.get('users', None)
+        groups = my_subcfg.get('groups', None)
+
+        if users or groups:
+            my_subcfg['_user_upstream_cfg'] = {
+              'users': {'users': users},
+              'groups': {'groups': groups},
+            }
+
         return my_subcfg
+
+
+class DockConfNormImageFallbackUser(NormalizerBase):
+
+    @property
+    def config_path(self):
+        return ['docker_fallback_user']
 
 
 class DockConfNormImageUsersList(NormalizerBase):

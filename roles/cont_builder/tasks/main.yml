@@ -117,12 +117,14 @@
         include_tasks: packages/distro/main.yml
 
 
-# handle user accounts
-      - name: handle user '{{ _iter_img_users.key }}'  ==>>  {{ _cur_dockimg.fullname }}
-        ansible.builtin.user: "{{ _iter_img_users.value.config }}"
-        loop: "{{ _cur_dockimg.users.users | default({}, True) | dict2items() }}"
-        loop_control:
-          loop_var: _iter_img_users
+# handle user accounts (and also groups)
+      - include_role:
+          name: smabot.base.manage_os_users_and_groups
+        vars:
+          smabot_base_manage_os_users_and_groups_args: >-
+            {{ _cur_dockimg.users._user_upstream_cfg }}
+        when: >-
+          _cur_dockimg.users._user_upstream_cfg | default(false)
 
 
       - name: assure py pip is up to date  ==>>  {{ _cur_dockimg.fullname }}
