@@ -113,7 +113,7 @@
 
 
 ## do standard package install
-      - name: standard distro package installs  ==>>  {{ _cur_dockimg.fullname }}
+      - name: standard distro package installs
         include_tasks: packages/distro/main.yml
 
 

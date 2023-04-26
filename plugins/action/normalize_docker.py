@@ -539,7 +539,7 @@ class DockConfNormImgFeatSudo(NormalizerBase):
     def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
         simple_sudo = my_subcfg.pop(self.simpleform_key, False)
 
-        if simple_sudo:
+        if isinstance(simple_sudo, bool) and simple_sudo:
             # create default docker sudo entry, which means that
             # standard docker user has all the rights without pw
             my_subcfg['mappings'] = {
@@ -554,6 +554,24 @@ class DockConfNormImgFeatSudo(NormalizerBase):
                   'comment': \
                       "assures that standard docker user"\
                       " can do anything without needing a password"
+                }],
+              }
+            }
+
+        if simple_sudo == "all":
+            my_subcfg['mappings'] = {
+              'ansible_contbuild': {
+                'user_specs': [{
+                  'users': ['ALL'],
+                  'subspecs': [{
+                     'cmd_specs': [{
+                        'tags': ['NOPASSWD:']
+                     }],
+                  }],
+                  'comment': \
+                     "assures that !!all!! users of the system"\
+                     " can do anything without needing a password,"\
+                     " hope you know what you're doing"
                 }],
               }
             }
