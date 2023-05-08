@@ -10,9 +10,17 @@ from ansible.errors import AnsibleOptionsError
 from ansible.module_utils.six import iteritems, string_types
 
 from ansible_collections.smabot.base.plugins.action.normalize_rectemplate_cfg import CopyItemNormalizer
-from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.base import ConfigNormalizerBase, NormalizerBase, NormalizerNamed
+from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.base import \
+  ConfigNormalizerBase,\
+  DefaultSetterConstant,\
+  NormalizerBase,\
+  NormalizerNamed
+
 from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.proxy import ConfigNormerProxy
-from ansible_collections.smabot.base.plugins.module_utils.utils.dicting import get_subdict, SUBDICT_METAKEY_ANY
+from ansible_collections.smabot.base.plugins.module_utils.utils.dicting import \
+  get_subdict,\
+  setdefault_none,\
+  SUBDICT_METAKEY_ANY
 
 from ansible_collections.smabot.base.plugins.module_utils.utils.utils import ansible_assert
 
@@ -66,7 +74,7 @@ class CopyFilesNormalizer(NormalizerBase):
     def __init__(self, pluginref, *args, **kwargs):
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
-          DockerCopyItemNormer(pluginref),
+          DockerCopyItemNormerFiles(pluginref),
         ]
 
         super(CopyFilesNormalizer, self).__init__(pluginref, *args, **kwargs)
@@ -121,6 +129,58 @@ class DockerCopyItemNormerBase():
 
 class DockerCopyItemNormer(DockerCopyItemNormerBase, CopyItemNormalizer):
     pass
+
+
+class DockerCopyItemDirOptsNormer(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'config', DefaultSetterConstant({})
+        )
+
+        super(DockerCopyItemDirOptsNormer, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['dir_opts']
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        pcfg = self.get_parentcfg(cfg, cfgpath_abs)
+
+        c = my_subcfg['config']
+
+        c.update(
+          self.copy_from_parent(cfg, cfgpath_abs, ['src', 'dest'])
+        )
+
+        setdefault_none(c, 'archive', False)
+        setdefault_none(c, 'group', False)
+        setdefault_none(c, 'owner', False)
+        setdefault_none(c, 'times', False)
+        setdefault_none(c, 'links', True)
+        setdefault_none(c, 'perms', True)
+        setdefault_none(c, 'recursive', True)
+
+        rs_opts = c.get('rsync_opts', [])
+
+        for ex in my_subcfg.get('excludes', []):
+            rs_opts.append("--exclude={}".format(ex))
+
+        if rs_opts:
+            c['rsync_opts'] = rs_opts
+
+        return my_subcfg
+
+
+class DockerCopyItemNormerFiles(DockerCopyItemNormer):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockerCopyItemDirOptsNormer(pluginref),
+        ]
+
+        super(DockerCopyItemNormerFiles, self).__init__(pluginref, *args, **kwargs)
 
 
 

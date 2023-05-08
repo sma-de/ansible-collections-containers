@@ -8,6 +8,7 @@
       ## ok, this is new, here not even the mighty magic legacy set_fact can update / overwrite handle_system_certs_args var, maybe because this is originally set as by "vars:" for a role include (??)
       ##copy_to_image_args: "{{ _tmp_sslcert_cfg.normalized }}"
       copy_to_image_args_normed: "{{ _tmp_copycfg.normalized }}"
+      _copy_packages: {}
 
 
   - include_tasks: handle_files.yml
@@ -37,4 +38,14 @@
         ##       - \.j2$
 
     when: copy_to_image_args_normed.copy_cfg.get('templates', {}) is truthy
+
+
+  - name: >-
+      optionally remove any os packages temporary installed while needed
+      for copy operation (like rsync)
+    ansible.builtin.package:
+      name: >-
+        {{ _copy_packages | dict2items | map(attribute='value')
+         | rejectattr("pre_installed") | map(attribute='name') | list }}
+      state: absent
 

@@ -11,6 +11,26 @@
     failed_when: 
       - not _result.stat.exists
 
+  - set_fact:
+      src_is_dir: "{{ _result.stat.isdir }}"
+
+
+  - block:
+
+      - name: >-
+          current source is link, check where it points
+          to  ==>>  {{ copy_to_image_args_normed.image_id }}
+        ansible.builtin.stat:
+          path: "{{ _result.stat.lnk_source }}"
+        become: no
+        delegate_to: localhost
+        register: _tmp_lnkcheck
+
+      - set_fact:
+          src_is_dir: "{{ _tmp_lnkcheck.stat.isdir }}"
+
+    when: _result.stat.islnk
+
 
     ##
     ## note: strangely enough, copy file to file only works when all
@@ -29,7 +49,58 @@
 
 
   - name: >-
-      copy file / dir '{{ _cpimg_files_iter.value.src_rel }}' to
+      copy file '{{ _cpimg_files_iter.value.src_rel }}' to
       image  ==>>  {{ copy_to_image_args_normed.image_id }}
     ansible.builtin.copy: "{{ _cpimg_files_iter.value.copy_api }}"
+    when: not src_is_dir
+
+
+    ##
+    ## note: in principle builtin.copy is capable of also copying dirs
+    ##   recursively, but its capability for this is a bit lacking, it
+    ##   struggles when the number of files get big and there is also no
+    ##   possibility to define excludes or similar, for that reason we
+    ##   use rsync (wrapper) for dir copy
+    ##
+  - block:
+
+      - block:
+
+          - name: test if rsync is already avaible on target
+            ansible.builtin.command:
+              argv:
+                - rsync
+                - "-v"
+            register: _tmp_check_rsync
+            failed_when: >-
+              _tmp_check_rsync.rc != 0 and _tmp_check_rsync.rc != 2
+
+
+          - name: rsync needs to be installed on target too, so make sure this is the case
+            ansible.builtin.include_role:
+              name: smabot.base.os_packages
+            vars:
+              smabot_base_os_packages_args:
+                packages:
+                  default:
+                    rsync:
+            when: _tmp_check_rsync.rc != 0
+
+          - set_fact:
+              _copy_packages: >-
+                {{ _copy_packages | combine({
+                     'rsync': {'name': 'rsync',
+                        'pre_installed': _tmp_check_rsync.rc == 0,
+                     }
+                  }) }}
+
+        when: not _copy_packages.get('rsync', False)
+
+
+      - name: >-
+          copy dir '{{ _cpimg_files_iter.value.src_rel }}' to
+          image  ==>>  {{ copy_to_image_args_normed.image_id }}
+        ansible.posix.synchronize: "{{ _cpimg_files_iter.value.dir_opts.config }}"
+
+    when: src_is_dir
 
