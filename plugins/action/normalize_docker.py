@@ -11,6 +11,7 @@ import pathlib
 import re
 
 from ansible.errors import AnsibleOptionsError
+from ansible.module_utils.six import iteritems, string_types
 
 from ansible_collections.smabot.base.plugins.module_utils.plugins.config_normalizing.base import \
   ConfigNormalizerBaseMerger,\
@@ -327,6 +328,7 @@ class DockConfNormImageInstance(NormalizerNamed):
           ##   actually must interact with the ecosystem in question 
           ##   for doing proper proxy normalizing for it)
           ##
+          DockConfNormImgDockCopy(pluginref),
           DockConfNormImgParent(pluginref),
           ConfigNormerProxy(pluginref, force_ecosystems=True),
           DockConfNormImageInstallMeta(pluginref),
@@ -438,6 +440,55 @@ class DockConfNormImageInstance(NormalizerNamed):
 
         if tmp:
             my_subcfg['tags'] += re.split(r'\s+', tmp.strip())
+
+        return my_subcfg
+
+
+
+##
+## note that this here is only a very minimal partial normer for
+## docker_copy only for specific cases, the actual normalizier
+## for the copy part is its own plugin
+##
+class DockConfNormImgDockCopy(NormalizerBase):
+
+    @property
+    def config_path(self):
+        return ['docker_copy']
+
+    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
+        ## check if a copy dir is marked as container workdir
+        ## and update config accordingly
+        workdirs = []
+
+        for x in ['files', 'templates']:
+            for k, v in my_subcfg.get(x, {}).items():
+                if isinstance(v, string_types):
+                    continue
+
+                if v.get('workdir', False):
+                    workdirs.append(v)
+
+        if workdirs:
+            ansible_assert(len(workdirs) == 1,
+               "more than one docker-copy dir (={}) was flagged as"
+               " container workdir but there can obviously be only"\
+               " one:\n{}".format(len(workdirs), workdirs)
+            )
+
+            pcfg = self.get_parentcfg(cfg, cfgpath_abs)
+
+            tmp = pcfg.get('workdir', None)
+            wd = workdirs[0]['dest']
+
+            ansible_assert(not tmp,
+               "docker-copy dir '{}' was flagged as container workdir"\
+               " while at the same time an explicit value was also"\
+               " given as workdir (='{}'), but there can obviously be"\
+               " only one workdir".format(wd, tmp)
+            )
+
+            pcfg['workdir'] = wd
 
         return my_subcfg
 
