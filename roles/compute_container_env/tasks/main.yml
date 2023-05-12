@@ -26,7 +26,7 @@
     ##   all the vars one would get when doing a normal login as this user
     ##
     become_method: su
-    become_user: "{{ _cur_dockimg.docker_user | default('root', True) }}"
+    become_user: "{{ _cur_dockimg.docker_user.real | default('root', True) }}"
 
 
   - set_fact:

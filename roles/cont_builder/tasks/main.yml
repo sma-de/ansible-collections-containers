@@ -347,10 +347,10 @@
         set_fact:
           _cur_image_env: >-
              {{ _cur_image_env | smabot.containers.append_contenv(
-                  new_vars={'USER': _cur_dockimg.docker_user}
+                  new_vars={'USER': _cur_dockimg.docker_user.real}
                 )
              }}
-        when: _cur_dockimg.docker_user
+        when: _cur_dockimg.docker_user.real | default(False)
 
 
       ##
@@ -458,7 +458,7 @@
             ENV: "{{ _cur_dockimg.environment.static | default(omit, True) }}"
             EXPOSE: "{{ _cur_dockimg.expose | default(omit, True) }}"
             LABEL: "{{ _cur_image_labels }}"
-            USER: "{{ _cur_dockimg.docker_user }}"
+            USER: "{{ _cur_dockimg.docker_user.initial | default('root', True) }}"
             WORKDIR: "{{ _cur_dockimg.workdir | default(omit, True) }}"
 
 

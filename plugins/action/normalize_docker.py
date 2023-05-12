@@ -48,10 +48,20 @@ def get_docker_user(imgcfg, update=False):
     ## handle docker user defaulting
     du = imgcfg.get('docker_user', None)
 
-    if not du:
+    if not isinstance(du, collections.abc.Mapping):
+        # assume string
+        du = {
+          'real': du,
+          'initial': du,
+        }
+
+    if not du.get('real', None):
         # default docker user to parent image user (or config
         # defined fallback user) if it exists
-        du = imgcfg['users'].get('docker_default_user', '')
+        du['real'] = imgcfg['users'].get('docker_default_user', '')
+
+    if not du['initial']:
+        du['initial'] = du['real']
 
     if update:
         imgcfg['docker_user'] = du
@@ -60,7 +70,7 @@ def get_docker_user(imgcfg, update=False):
 
 
 def magic_docker_user(rawusr, imgcfg, cfg, cfgpath_abs):
-    return get_docker_user(imgcfg)
+    return get_docker_user(imgcfg).get('real')
 
 
 MAGIC_USER_MAP = {
@@ -335,9 +345,9 @@ class DockConfNormImageInstance(NormalizerNamed):
           (DockConfNormImageSCMBased, True), # make this lazy initialized (only set it, when it already exists in input cfg)
           DockConfNormImageUsersGeneric(pluginref),
           DockConfNormImageDecorations(pluginref),
+          DockConfNormImgOptFeatures(pluginref),
           DockConfNormImagePackages(pluginref),
           DockConfNormImgLocales(pluginref),
-          DockConfNormImgOptFeatures(pluginref),
           (DockConfNormImageAutoVersioning, True), # make this lazy initialized
         ]
 
@@ -565,6 +575,7 @@ class DockConfNormImgOptFeatures(NormalizerBase):
         subnorms += [
           (DockConfNormImgFeatSudo, True),
           (DockConfNormImgFeatSonarqubeScanner, True),
+          (DockConfNormImgFeatSuExec, True),
         ]
 
         super(DockConfNormImgOptFeatures, self).__init__(pluginref, *args, **kwargs)
@@ -649,6 +660,54 @@ class DockConfNormImgFeatSudo(NormalizerBase):
 
                 us['users'] = tmp
 
+        return my_subcfg
+
+
+
+class DockConfNormImgFeatSuExec(NormalizerBase):
+
+    NORMER_CONFIG_PATH = ['su_exec']
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'enabled', DefaultSetterConstant(True)
+        )
+
+        super(DockConfNormImgFeatSuExec, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return self.NORMER_CONFIG_PATH
+
+    @property
+    def simpleform_key(self):
+        return 'enabled'
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        if not my_subcfg['enabled']:
+            return {}
+
+        ## ensure su_exec is porperly installed
+        ## TODO: simply installing per package atm seem to only work for alpine unfortunately, the more general approach would be to dynamically build it like here:
+        ##   https://gist.github.com/dmrub/b311d36492f230887ab0743b3af7309b
+        pcfg = self.get_parentcfg(cfg, cfgpath_abs, level=2)
+
+        tmp = setdefault_none(setdefault_none(setdefault_none(
+          pcfg, 'packages', {}), 'distro', {}), 'packages', {}
+        )
+
+        tmp['su-exec'] = None
+
+        ## ensure container user is root
+        du = setdefault_none(pcfg, 'docker_user', {})
+
+        if not isinstance(du, collections.abc.Mapping):
+            ## assume string
+            du = {
+              'real': du,
+            }
+
+        du['initial'] = 'root'
         return my_subcfg
 
 

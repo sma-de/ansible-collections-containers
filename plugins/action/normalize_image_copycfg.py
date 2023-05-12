@@ -105,7 +105,7 @@ class DockerCopyItemNormerBase():
 
     def magic_owner_docker_user(self, cfg, my_subcfg, cfgpath_abs):
         pcfg = self.get_parentcfg(cfg, cfgpath_abs, level=3)
-        return pcfg['image_config']['docker_user']
+        return pcfg['image_config']['docker_user']['real']
 
 
     MAGIC_OWNER_MAP = {
