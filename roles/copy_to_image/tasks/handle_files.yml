@@ -70,7 +70,7 @@
             ansible.builtin.command:
               argv:
                 - rsync
-                - "-v"
+                - "--version"
             register: _tmp_check_rsync
             failed_when: >-
               _tmp_check_rsync.rc != 0 and _tmp_check_rsync.rc != 2
@@ -101,6 +101,32 @@
           copy dir '{{ _cpimg_files_iter.value.src_rel }}' to
           image  ==>>  {{ copy_to_image_args_normed.image_id }}
         ansible.posix.synchronize: "{{ _cpimg_files_iter.value.dir_opts.config }}"
+
+
+        ## optionally handle user/group owner (atm not possible to do this directly with synch)
+
+      - name: ensure copied files and dirs ars owned by correct user
+        ansible.builtin.command:
+          argv:
+            - chown
+            - '-R'
+            - "{{ _cpimg_files_iter.value.copy_api.owner }}"
+            - "{{ _cpimg_files_iter.value.dir_opts.config.dest }}"
+        changed_when: false
+        when: >-
+          _cpimg_files_iter.value.copy_api.owner | default(False)
+
+      - name: ensure copied files and dirs ars owned by correct group
+        ansible.builtin.command:
+          argv:
+            - chgrp
+            - '-R'
+            - "{{ _cpimg_files_iter.value.copy_api.group }}"
+            - "{{ _cpimg_files_iter.value.dir_opts.config.dest }}"
+        changed_when: false
+        when: >-
+          _cpimg_files_iter.value.copy_api.group | default(False)
+
 
     when: src_is_dir
 
