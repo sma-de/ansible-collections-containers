@@ -673,6 +673,14 @@ class DockConfNormImgFeatSuExec(NormalizerBase):
           'enabled', DefaultSetterConstant(True)
         )
 
+        self._add_defaultsetter(kwargs,
+          'get_src', DefaultSetterConstant({})
+        )
+
+        self._add_defaultsetter(kwargs,
+          'install', DefaultSetterConstant({})
+        )
+
         super(DockConfNormImgFeatSuExec, self).__init__(pluginref, *args, **kwargs)
 
     @property
@@ -688,15 +696,62 @@ class DockConfNormImgFeatSuExec(NormalizerBase):
             return {}
 
         ## ensure su_exec is porperly installed
-        ## TODO: simply installing per package atm seem to only work for alpine unfortunately, the more general approach would be to dynamically build it like here:
-        ##   https://gist.github.com/dmrub/b311d36492f230887ab0743b3af7309b
         pcfg = self.get_parentcfg(cfg, cfgpath_abs, level=2)
 
         tmp = setdefault_none(setdefault_none(setdefault_none(
           pcfg, 'packages', {}), 'distro', {}), 'packages', {}
         )
 
-        tmp['su-exec'] = None
+        ## note: simply installing per package atm seem to only work for alpine unfortunately, the more general approach would be to dynamically build it like here:
+        ##   https://gist.github.com/dmrub/b311d36492f230887ab0743b3af7309b
+        ##tmp['su-exec'] = None
+
+        _unset = object()
+
+        # ensure build dependencies are at minimum during docker build phase avaible
+        for x in ['gcc', 'libc-dev']:
+            p = tmp.get(x, _unset)
+
+            if p == _unset:
+                tmp[x] = {
+                  'temporary': True,
+                }
+
+        src = my_subcfg['get_src']
+        srccfg = setdefault_none(src, 'config', {})
+
+        ver = src.get('version', None)
+
+        if not ver:
+
+            ##
+            ## note: on default we could either try to stay up date here
+            ##   by always picking the latest version or be more secure,
+            ##   pick a fixed version and checksum it, we opt for the
+            ##   2nd variant here
+            ##
+            ##setdefault_none(src, 'version', 'master')
+
+            ## note: it would be nice to use a named tagged here, but
+            ##   unfortunately all current tags are quite old so we
+            ##   fallback to the git SHA of the current master
+            setdefault_none(src, 'version',
+              '4c3bb42b093f14da70d8ab924b487ccfbb1397af'
+            )
+
+            setdefault_none(srccfg, 'checksum',
+              'md5:6df6783808b71dff4b08bb80c6bff1fb'
+            )
+
+        url = setdefault_none(src, 'url',
+          'https://raw.githubusercontent.com/ncopa/su-exec/{version}/su-exec.c'
+        )
+
+        src['url'] = url.format(**src)
+        srccfg['url'] = src['url']
+
+        i = my_subcfg['install']
+        setdefault_none(i, 'bindest', '/usr/local/bin/su-exec')
 
         ## ensure container user is root
         du = setdefault_none(pcfg, 'docker_user', {})

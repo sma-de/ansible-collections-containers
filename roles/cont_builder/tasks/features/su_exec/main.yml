@@ -1,0 +1,46 @@
+---
+
+  - name: create temporary build dir
+    ansible.builtin.tempfile:
+      state: directory
+    register: _tmp_buildir
+
+
+  - set_fact:
+      _tmp_modargs: >-
+        {{ _cur_dockimg.features.su_exec.get_src.config
+         | combine({'dest': _tmp_buildir.path}) }}
+
+  - name: download su-exec sources
+    ansible.builtin.get_url: "{{ _tmp_modargs }}"
+
+
+  - name: build su-exec binary
+    ansible.builtin.shell:
+      cmd: >-
+        gcc -Wall "{{ _tmp_buildir.path }}/"*.c
+        "-o{{ _cur_dockimg.features.su_exec.install.bindest }}"
+
+
+  - name: properly install su-exec
+    ansible.builtin.shell:
+      cmd: |-
+        chown root:root "{{ _cur_dockimg.features.su_exec.install.bindest }}"
+        chmod 0755 "{{ _cur_dockimg.features.su_exec.install.bindest }}"
+
+
+    ##
+    ## note: when it works calling it without args should print usage
+    ##   and exit with 0, so to test installation, simply call it that way
+    ##
+  - name: ensure installation was succesful
+    ansible.builtin.command:
+      argv:
+        - su-exec
+
+
+  - name: remove temp build dir again
+    ansible.builtin.file:
+      path: "{{ _tmp_buildir.path }}"
+      state: absent
+

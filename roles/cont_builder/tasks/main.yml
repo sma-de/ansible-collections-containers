@@ -299,6 +299,11 @@
 
 ## optionally handle "features"
 
+      - name: optionally handle feature 'su-exec'
+        include_tasks: features/su_exec/main.yml
+        when: (_cur_dockimg.features.su_exec | default(False)) is truthy
+
+
       - name: optionally handle feature 'sudo'
         include_role:
           name: smabot.base.setup_sudo
