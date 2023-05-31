@@ -802,12 +802,10 @@ class DockConfNormImgFeatSonarqubeScanner(NormalizerBase):
 
         tmp = setdefault_none(pcfg, 'packages', {})
         tmp = setdefault_none(tmp, 'distro', {})
-        tmp = setdefault_none(tmp, 'packages', [])
+        tmp = setdefault_none(tmp, 'packages', {})
 
-        if not tmp:
-            tmp.append({})
-
-        tmp = tmp[0]
+        if isinstance(tmp, list):
+            tmp = tmp[0]
 
         ## another important point here is to avoid installing two
         ## different java's, for this to work properly one should use
