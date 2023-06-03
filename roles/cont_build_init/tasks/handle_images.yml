@@ -44,7 +44,7 @@
           - name: add fixed auto versions to list
             set_fact:
               _tmp_in_versions: >-
-                 {{ (_tmp_in_versions + _cur_dockimg.auto_versioning.fixed_versions) }}
+                 {{ _tmp_in_versions + _cur_dockimg.auto_versioning.fixed_versions }}
 
 
             ## note: dont do this when we have only fixed versions
@@ -55,7 +55,7 @@
                   | smabot.base.sort_versions(reverse=True,
                        method=_cur_dockimg.auto_versioning.sorting.method_type,
                        method_args=_cur_dockimg.auto_versioning.sorting.method_args
-                    ) }}
+                 }}
              when: not _cur_dockimg.auto_versioning.fixed_only
 
         when: >-
