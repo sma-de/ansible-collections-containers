@@ -1868,7 +1868,15 @@ class DockConfNormImageUsersGeneric(NormalizerBase):
           self.get_parentcfg(cfg, cfgpath_abs)
         )
 
-        dpu = pinfs['Config']['User']
+        ##
+        ## note: it is possible and legal that in docker image config
+        ##   section user is given as 'username:usergrp', in that case
+        ##   we only need / want the part before the colon, by
+        ##   opportunistic splitting here we can handle both cases
+        ##   (with or without colon) fine
+        ##
+        dpu = (pinfs['Config']['User'] or '').split(':')
+        dpu = dpu[0]
 
         ddu = my_subcfg.get('docker_default_user', None) or {}
         dfu = my_subcfg['docker_fallback_user']
@@ -1889,7 +1897,7 @@ class DockConfNormImageUsersGeneric(NormalizerBase):
             my_subcfg['docker_default_user'] = dpu
             my_subcfg['users'][dpu] = ddu
 
-        # convert given user / groups config intp upstream module
+        # convert given user / groups config into upstream module
         # expected format
         users = my_subcfg.get('users', None)
         groups = my_subcfg.get('groups', None)
