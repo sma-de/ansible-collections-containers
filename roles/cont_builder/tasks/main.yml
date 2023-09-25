@@ -142,7 +142,7 @@
 
       - set_fact:
           _tmp_pip_err_lines: >-
-            {{ _tmp_modres_pip_update.msg | split('\n') }}
+            {{ [_tmp_modres_pip_update.msg] }}
         when: _tmp_modres_pip_update.stderr_lines is not defined
 
 
