@@ -134,6 +134,8 @@
         failed_when: false
         register: _tmp_modres_pip_update
 
+      - debug:
+          var: _tmp_modres_pip_update
 
       - name: filter out pip warnings
         set_fact:
