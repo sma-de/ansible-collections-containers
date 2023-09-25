@@ -126,11 +126,64 @@
             copy_cfg: "{{ _cur_dockimg.docker_copy }}"
             image_config: "{{ _cur_dockimg }}"
 
-
-      - name: assure py pip is up to date  ==>>  {{ _cur_dockimg.fullname }}
+## TODO: make this its own role
+      - name: ensure py pip is up to date  ==>>  {{ _cur_dockimg.fullname }}
         ansible.builtin.pip:
           name: pip
           state: latest
+        failed_when: false
+        register: _tmp_modres_pip_update
+
+
+      - name: filter out pip warnings
+        set_fact:
+          _tmp_pip_err_handled: false
+          _tmp_pip_err_lines: >-
+             {{ _tmp_modres_pip_update.stderr_lines
+              | reject("regex", "(?i)^\s*warn") }}
+
+
+        ##
+        ## pip update error handling
+        ##
+      - block:
+
+            ##
+            ## special error case: pip is managed by os-packages, not
+            ## natively, so use them
+            ##
+          - block:
+
+                ##
+                ## TODO: generalize for more distros and maybe py2 (??)
+                ##
+              - block:
+
+                  - name: ensure py pip is up to date (os package)
+                    ansible.builtin.package:
+                      name: python3-pip
+                      state: latest
+
+                  - set_fact:
+                      _tmp_pip_err_handled: true
+
+                when: ansible_os_family == "Debian"
+
+            when: >-
+              (_tmp_pip_err_lines | length) == 1 and
+              (_tmp_pip_err_lines | first) is
+              regex("(?i)externally-managed-environment")
+
+
+          - name: ensure that error was handled succesfully
+            ansible.builtin.assert:
+              that:
+                - _tmp_pip_err_handled is truthy
+              fail_msg: |-
+                updating pip failed with unhandled error(s):
+                {{ _tmp_pip_err_lines | join('\n') }}
+
+        when: _tmp_pip_err_lines is truthy
 
 
 #
