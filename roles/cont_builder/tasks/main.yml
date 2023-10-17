@@ -103,6 +103,17 @@
         when: _cur_dockimg.get('steps', {}).get('pre_packages', None) is truthy
 
 
+      - name: optionally handle custom extra package sources (apt)
+        include_role:
+          name: smabot.base.custom_apt_sources
+        vars:
+          smabot_base_custom_apt_sources_args: >-
+            {{ _cur_dockimg.packages.distro.sources }}
+        when: >-
+          ansible_os_family == "Debian" and
+          (_cur_dockimg.packages.distro.sources | default(False)) is truthy
+
+
 ## do standard package install
       - name: standard distro package installs
         include_tasks: packages/distro/main.yml
