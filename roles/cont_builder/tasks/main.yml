@@ -190,6 +190,19 @@
 
                 when: ansible_os_family == "Debian"
 
+
+              - block:
+
+                  - name: ensure py pip is up to date (os package)
+                    ansible.builtin.package:
+                      name: py3-pip
+                      state: latest
+
+                  - set_fact:
+                      _tmp_pip_err_handled: true
+
+                when: ansible_os_family == "Alpine"
+
             when: >-
               (_tmp_pip_err_lines | length) == 1 and
               (_tmp_pip_err_lines | first) is
