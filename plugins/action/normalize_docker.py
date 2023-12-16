@@ -1069,6 +1069,25 @@ class DockConfNormImagePipPackages(DockConfNormImageXPackBase):
         )
 
         my_subcfg['default_settings']['version_comparator'] = "=="
+
+        tmp = my_subcfg['default_settings'].get('extra_args', None) or ''
+
+        if tmp:
+            tmp += ' '
+
+        ##
+        ## note: we need this evil looking flag to avoid the
+        ##   externally-managed-environment error newer python versions
+        ##   throw which is intendend to guard against overwriting os
+        ##   packager managed python installations including its libs
+        ##   to be changed / manipulated directly by pip, in the most
+        ##   general cases this is probably a really good thing to do,
+        ##   but for our docker/container case it is still okay-ish
+        ##   to do it like the old times
+        ##
+        tmp += '--break-system-packages'
+
+        my_subcfg['default_settings']['extra_args'] = tmp
         return my_subcfg
 
 
