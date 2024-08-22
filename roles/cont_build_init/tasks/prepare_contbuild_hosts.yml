@@ -111,7 +111,8 @@
                 'connection': {'name': _bcon_name },
                 'autover': _autovcfg_iter, 'docker_cfg': docker_build,
                 'cfgkey': (_dcfg_keychain | join('.')),
-                'image_meta': _cur_image_meta
+                'image_meta': _cur_image_meta,
+                'custom_vars': smabot_containers_contbuild_custom_vars | default(None),
               }
             })
          }}

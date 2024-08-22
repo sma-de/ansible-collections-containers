@@ -69,6 +69,10 @@
       - name: optionally run custom pre init roles
         include_role:
           name: "{{ _pre_init_roles_iter }}"
+
+          ## IMPORTANT: variables set here should
+          ##   be avaible for later container build roles
+          public: yes
         loop: "{{ _tmp_pre_init_roles }}"
         loop_control:
           loop_var: _pre_init_roles_iter

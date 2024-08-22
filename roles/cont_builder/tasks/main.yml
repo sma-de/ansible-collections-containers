@@ -20,6 +20,15 @@
       _autovcfg_iter: "{{ _my_cfgref.autover }}"
 
 
+  - name: make optional custom vars avaible for contbuild role
+    set_fact:
+      "{{ _iter_cvars.key }}": "{{ _iter_cvars.value }}"
+    loop: >-
+      {{ (_my_cfgref.custom_vars | default({}, True)) | dict2items }}
+    loop_control:
+      loop_var: _iter_cvars
+
+
   - set_fact:
       _dbuild_meta: {}
       _java_proxy_env: {}
