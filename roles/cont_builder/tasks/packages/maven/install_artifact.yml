@@ -9,6 +9,20 @@
     ansible.builtin.pip:
       name: lxml
 
+      ##
+      ## note: we need this evil looking flag to avoid the
+      ##   externally-managed-environment error newer python versions
+      ##   throw which is intendend to guard against overwriting os
+      ##   packager managed python installations including its libs
+      ##   to be changed / manipulated directly by pip, in the most
+      ##   general cases this is probably a really good thing to do,
+      ##   but for our docker/container case it is still okay-ish
+      ##   to do it like the old times
+      ##
+      extra_args: >-
+        --break-system-packages
+
+
   - name: >-
       get maven artifact '{{ _iter_packinst.name }}'
        ==>>  {{ _cur_dockimg.fullname }}
