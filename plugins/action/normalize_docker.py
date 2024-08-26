@@ -782,6 +782,26 @@ class DockConfNormImgFeatSonarqubeScanner(NormalizerBase):
     def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
         simple_form = my_subcfg.pop(self.simpleform_key, False)
 
+        tmp = setdefault_none(my_subcfg, 'requirements', {})
+        tmp = setdefault_none(tmp, 'pip', {})
+        tmp = setdefault_none(tmp, 'config', {})
+        tmp = setdefault_none(tmp, 'extra_args', '')
+
+        if tmp:
+            tmp += ' '
+
+        ##
+        ## note: we need this evil looking flag to avoid the
+        ##   externally-managed-environment error newer python versions
+        ##   throw which is intendend to guard against overwriting os
+        ##   packager managed python installations including its libs
+        ##   to be changed / manipulated directly by pip, in the most
+        ##   general cases this is probably a really good thing to do,
+        ##   but for our docker/container case it is still okay-ish
+        ##   to do it like the old times
+        ##
+        tmp += '--break-system-packages'
+
         if simple_form:
             # we actually dont need to default here any values when
             # coming from simple form, as sonar scanner install
@@ -815,7 +835,6 @@ class DockConfNormImgFeatSonarqubeScanner(NormalizerBase):
         java = setdefault_none(tmp, 'name', java)
 
         my_subcfg['java'] = java
-
         return my_subcfg
 
 
