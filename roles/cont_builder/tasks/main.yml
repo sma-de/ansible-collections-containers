@@ -147,6 +147,10 @@
             image_config: "{{ _cur_dockimg }}"
 
 ## TODO: make this its own role
+      - name: ensure py pip self required packages are installed
+        ansible.builtin.pip:
+          name: packaging
+
       - name: ensure py pip is up to date  ==>>  {{ _cur_dockimg.fullname }}
         ansible.builtin.pip:
           name: pip
