@@ -784,8 +784,8 @@ class DockConfNormImgFeatSonarqubeScanner(NormalizerBase):
 
         tmp = setdefault_none(my_subcfg, 'requirements', {})
         tmp = setdefault_none(tmp, 'pip', {})
-        tmp = setdefault_none(tmp, 'config', {})
-        tmp = setdefault_none(tmp, 'extra_args', '')
+        tcfg = setdefault_none(tmp, 'config', {})
+        tmp = setdefault_none(tcfg, 'extra_args', '')
 
         if tmp:
             tmp += ' '
@@ -801,6 +801,8 @@ class DockConfNormImgFeatSonarqubeScanner(NormalizerBase):
         ##   to do it like the old times
         ##
         tmp += '--break-system-packages'
+
+        tcfg['extra_args'] = tmp
 
         if simple_form:
             # we actually dont need to default here any values when
