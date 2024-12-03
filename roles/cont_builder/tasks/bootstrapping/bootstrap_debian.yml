@@ -1,21 +1,29 @@
 ---
 
+  - set_fact:
+      _tmp_critical_core_packages:
+        ## needed for recent versions of pip for pip to work at all
+        python3-packaging:
+
+
   - name: test if OS is debian (based)
     ansible.builtin.raw: apt --version
     register: _tmp_raw_res
     failed_when: false
 
 
+  - set_fact:
+      _tmp_critical_core_packages: >-
+        {{ _tmp_critical_core_packages | combine({
+          ## obviously as ansible is python based we need an interpreter installed
+          'python3': None}) }}
+    when: _tmp_raw_res.rc == 0
+
+
   - block:
 
       - set_fact:
           _tmp_bootstrapper: debian
-          _tmp_critical_core_packages:
-            ## obviously as ansible is python based we need an interpreter installed
-            python3:
-
-            ## needed for recent versions of pip for pip to work at all
-            python3-packaging:
 
 
       # ansible will need python, and since it isn't there we can only use the special raw mode
@@ -30,5 +38,5 @@
           }}
           && rm -rf /var/lib/apt/lists/*
 
-    when: _tmp_raw_res.rc == 0
+    when: _tmp_critical_core_packages is truthy
 
