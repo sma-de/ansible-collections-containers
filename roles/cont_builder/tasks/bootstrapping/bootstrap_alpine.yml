@@ -1,29 +1,26 @@
 ---
 
-  - set_fact:
-      _tmp_critical_core_packages:
-        ## needed for recent versions of pip for pip to work at all
-        py3-packaging:
-
-
   - name: test if OS is alpine
     ansible.builtin.raw: apk --version
     register: _tmp_raw_res
     failed_when: false
 
 
-  - set_fact:
-      _tmp_critical_core_packages: >-
-        {{ _tmp_critical_core_packages | combine({
-          ## obviously as ansible is python based we need an interpreter installed
-          'python3': None}) }}
-    when: _tmp_raw_res.rc == 0
-
-
   - block:
 
       - set_fact:
           _tmp_bootstrapper: alpine
+          _tmp_critical_core_packages:
+            ## needed for recent versions of pip for pip to work at all
+            py3-packaging:
+
+
+      - set_fact:
+          _tmp_critical_core_packages: >-
+            {{ _tmp_critical_core_packages | combine({
+              ## obviously as ansible is python based we need an interpreter installed
+              'python3': None}) }}
+        when: _tmp_py_installed.rc != 0
 
 
       # ansible will need python, and since it isn't there we can only use the special raw mode
@@ -36,5 +33,5 @@
             | map(attribute='key') | join(' ')
           }}
 
-    when: _tmp_critical_core_packages is truthy
+    when: _tmp_raw_res.rc == 0
 

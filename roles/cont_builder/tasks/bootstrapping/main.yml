@@ -11,7 +11,12 @@
     register: _tmp_py_installed
     failed_when: false
 
-
+    ##
+    ## update: even when a python interpreter is installed
+    ##   we can have critical core components to install,
+    ##   so skipping this section just because python is
+    ##   found is not valid anymore
+    ##
   - block:
 
         ##
@@ -47,5 +52,6 @@
              Seems not to be one of the supported:
              {{ _tmp_supported_bstrapper | join(', ') }}
 
-    when: _tmp_py_installed.rc != 0
+    ##when: _tmp_py_installed.rc != 0
+    when: True
 
