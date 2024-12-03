@@ -54,7 +54,7 @@
           - name: install core dependencies
             ansible.builtin.raw: >-
               {{ _tmp_bootstrap_env | smabot.base.kvlist | join(' ') }}
-              python3 -m pip packaging --root-user-action
+              python3 -m pip install --root-user-action packaging
 
         when: _tmp_py_installed.rc == 0
 
