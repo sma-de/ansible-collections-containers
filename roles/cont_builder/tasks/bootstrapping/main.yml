@@ -43,8 +43,10 @@
         loop: "{{ _tmp_supported_bstrapper }}"
         loop_control:
            loop_var: _iter_bstrapper
-           break_when:
-             - _tmp_bootstrapper is truthy
+
+           # TODO: this is still to new to be widely usable yet (ansible 2.18)
+           ##break_when:
+           ##  - _tmp_bootstrapper is truthy
 
 
       - ansible.builtin.assert:
