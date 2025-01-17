@@ -1,6 +1,29 @@
 ---
 
     ##
+    ## note: we need this evil looking flag to avoid the
+    ##   externally-managed-environment error newer python versions
+    ##   throw which is intendend to guard against overwriting os
+    ##   packager managed python installations including its libs
+    ##   to be changed / manipulated directly by pip, in the most
+    ##   general cases this is probably a really good thing to do,
+    ##   but for our docker/container case it is still okay-ish
+    ##   to do it like the old times
+    ##
+  - set_fact:
+      _tmp_extra_args: >-
+        --break-system-packages
+
+
+    ## TODO: handle older alpine version which do not support system-packages break flag
+  - set_fact:
+      _tmp_extra_args:
+    when: >-
+      ansible_distribution == "Ubuntu"
+      and (ansible_distribution_major_version | int) < 20
+
+
+    ##
     ## TODO: technically it would be cleaner to remove this again at the end, but is it really worth the effort??
     ##
   - name: >-
@@ -9,18 +32,8 @@
     ansible.builtin.pip:
       name: lxml
 
-      ##
-      ## note: we need this evil looking flag to avoid the
-      ##   externally-managed-environment error newer python versions
-      ##   throw which is intendend to guard against overwriting os
-      ##   packager managed python installations including its libs
-      ##   to be changed / manipulated directly by pip, in the most
-      ##   general cases this is probably a really good thing to do,
-      ##   but for our docker/container case it is still okay-ish
-      ##   to do it like the old times
-      ##
       extra_args: >-
-        --break-system-packages
+        {{ _tmp_extra_args }}
 
 
   - name: >-
