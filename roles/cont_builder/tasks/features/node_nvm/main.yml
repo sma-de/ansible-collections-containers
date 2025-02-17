@@ -1,0 +1,80 @@
+---
+
+  - name: >-
+      install nvm version
+      {{ _cur_dockimg.features.node_nvm.installer.version }}
+    ansible.builtin.shell: |-
+      echo "run installer ..."
+      curl -o- {{ _cur_dockimg.features.node_nvm.installer.url }} | bash
+
+      echo "move installed code to configured destination dir ..."
+      mv "$HOME/.nvm" '{{ _cur_dockimg.features.node_nvm.installer.destdir }}'
+
+    ## this is an always-changer, as usual for this cases we force
+    ## it to be a nether changer
+    changed_when: False
+
+
+  - name: ensure nvm rcfile with correct content exists
+    ansible.builtin.copy:
+      dest: "{{ _cur_dockimg.features.node_nvm.installer.rcfile }}"
+      content: |
+        ##
+        ## this file is ansible auto generated, DO NOT EDIT!
+        ##
+
+        # load nvm
+        export NVM_DIR="{{ _cur_dockimg.features.node_nvm.installer.destdir }}"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+
+  - name: source nvm rcfile from profile file
+    ansible.builtin.blockinfile: >-
+      {{ _iter_prof_files.value.config }}
+    loop: >-
+      {{ _cur_dockimg.features.node_nvm.node.from_profiles.files
+       | dict2items }}
+    loop_control:
+      loop_var: _iter_prof_files
+    when: _iter_prof_files.value.enabled
+
+
+  - name: source nvm rcfile from profile *.d dirs
+    ansible.builtin.copy: >-
+      {{ _iter_prof_ddirs.value.config }}
+    loop: >-
+      {{ _cur_dockimg.features.node_nvm.node.from_profiles.d_dirs
+       | dict2items }}
+    loop_control:
+      loop_var: _iter_prof_ddirs
+    when: _iter_prof_ddirs.value.enabled
+
+
+  - block:
+
+        ## standard rc-sourcing by any-user profiling seems not to work
+        ## here :( neither here for ansible nor later when running from docker container (TODO!)
+      - name: check if nvm was installed properly
+        ansible.builtin.shell: |-
+          . /etc/nvmrc
+          command -v nvm
+
+
+        ## standard rc-sourcing by any-user profiling seems not to work
+        ## here :( neither here for ansible nor later when running from docker container (TODO!)
+      - name: >-
+          set default node version (optional) and check if node works properly
+        ansible.builtin.shell: |-
+          ## works when explicitly sourced here, why is this still necessary??
+          . /etc/nvmrc
+          nvm install '{{ _cur_dockimg.features.node_nvm.node.default_version }}'
+          nvm alias default '{{ _cur_dockimg.features.node_nvm.node.default_version }}'
+
+          node -v
+        when: >-
+          (_cur_dockimg.features.node_nvm.node.default_version
+          | default(False)) is truthy
+
+    environment: >-
+      {{ _cur_dockimg.features.node_nvm.node.from_profiles.env }}
+

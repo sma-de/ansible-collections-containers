@@ -400,6 +400,11 @@
         when: (_cur_dockimg.features.su_exec | default(False)) is truthy
 
 
+      - name: optionally handle feature 'node-nvm'
+        include_tasks: features/node_nvm/main.yml
+        when: (_cur_dockimg.features.node_nvm | default(False)) is truthy
+
+
       - name: optionally handle feature 'sudo'
         include_role:
           name: smabot.base.setup_sudo

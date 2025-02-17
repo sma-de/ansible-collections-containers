@@ -15,13 +15,32 @@
 
       - block:
 
+          - name: determine os version pre facts
+            ansible.builtin.raw: >-
+              grep -e 'VERSION_ID' /etc/os-release
+              | sed 's/.*=\s*//' | sed 's/\s*$//'
+            register: _tmp_os_version_shell
+
+
           - set_fact:
+              _tmp_os_version: >-
+                {{ _tmp_os_version_shell.stdout | ansible.builtin.split('.') }}
+
               _tmp_critical_core_packages:
                 ## obviously as ansible is python based we need an interpreter installed
                 python3:
 
-                ## needed for recent versions of pip for pip to work at all
-                py3-packaging:
+
+            ## needed for recent versions of pip for pip to work at all
+          - set_fact:
+              _tmp_critical_core_packages: >-
+                {{ _tmp_critical_core_packages | combine({
+                     'py3-packaging': None,
+                  })
+                }}
+            when: >-
+              (_tmp_os_version[0] | int) >= 3
+              and (_tmp_os_version[1] | int) >= 13
 
 
           ##

@@ -9,6 +9,7 @@ import copy
 import os 
 import pathlib
 import re
+import textwrap
 
 from ansible.errors import AnsibleOptionsError
 from ansible.module_utils.six import iteritems, string_types
@@ -576,6 +577,7 @@ class DockConfNormImgOptFeatures(NormalizerBase):
           (DockConfNormImgFeatSudo, True),
           (DockConfNormImgFeatSonarqubeScanner, True),
           (DockConfNormImgFeatSuExec, True),
+          (DockConfNormImgFeatNodeNvm, True),
         ]
 
         super(DockConfNormImgOptFeatures, self).__init__(pluginref, *args, **kwargs)
@@ -659,6 +661,214 @@ class DockConfNormImgFeatSudo(NormalizerBase):
                     tmp.append(parse_user(u, pcfg, cfg, cfgpath_abs))
 
                 us['users'] = tmp
+
+        return my_subcfg
+
+
+
+class DockConfNormImgFeatNodeNvm(NormalizerBase):
+
+    NORMER_CONFIG_PATH = ['node_nvm']
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'enabled', DefaultSetterConstant(True)
+        )
+
+        self._add_defaultsetter(kwargs,
+          'node', DefaultSetterConstant({})
+        )
+
+        self._add_defaultsetter(kwargs,
+          'installer', DefaultSetterConstant({})
+        )
+
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockConfNormImgOptFeatNodeNvmProfileFilesInst(pluginref),
+          DockConfNormImgOptFeatNodeNvmProfileDDirsInst(pluginref),
+        ]
+
+        super(DockConfNormImgFeatNodeNvm, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return self.NORMER_CONFIG_PATH
+
+    @property
+    def simpleform_key(self):
+        return 'enabled'
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        if not my_subcfg['enabled']:
+            return {}
+
+        ## ensure needed dependencies are installed
+        pcfg = self.get_parentcfg(cfg, cfgpath_abs, level=2)
+
+        tmp = setdefault_none(setdefault_none(setdefault_none(
+          pcfg, 'packages', {}), 'distro', {}), 'packages', {}
+        )
+
+        for d in ['bash', 'curl']:
+          setdefault_none(tmp, d, None)
+
+        inst = my_subcfg['installer']
+
+        ## TODO: support auto-latest determing versioning
+        ##setdefault_none(inst, 'version', 'latest')
+        iver = setdefault_none(inst, 'version', 'v0.40.1')
+
+        iurl = setdefault_none(inst, 'url',
+           'https://raw.githubusercontent.com/nvm-sh/nvm/{version}/install.sh'
+        )
+
+        ## template installer url
+        inst['url'] = iurl.format(version=iver)
+
+        setdefault_none(inst, 'destdir', '/usr/local/share/node_nvm')
+
+        ## similar to py venv we need to have some activation
+        ## code per session for nvm to do its thing
+        rcfile = setdefault_none(inst, 'rcfile', '/etc/nvmrc')
+
+        node = my_subcfg['node']
+        ##node['default_version']
+
+        ## for rc-activation file to work and so something actively
+        ## it needs to be sourced by something when new sessions are opened
+        fprof = setdefault_none(node, 'from_profiles', {})
+        fprof_files = setdefault_none(fprof, 'files', {})
+
+        ## all bash sessions, interactively and non-interactively
+        setdefault_none(fprof_files, '/etc/bashrc', True)
+
+        ## all posix sh default sessions, interactively
+        etc_prof_file = fprof_files.get('/etc/profile', None)
+
+        fprof_dirs = setdefault_none(fprof, 'd_dirs', {})
+
+        if not etc_prof_file:
+            setdefault_none(fprof_dirs, '/etc/profile.d', True)
+
+        fprof_env = setdefault_none(fprof, 'env', {})
+
+        ## all posix sh default sessions, non-interactively
+        setdefault_none(fprof_env, 'ENV', rcfile)
+
+        tmp = setdefault_none(setdefault_none(pcfg, 'environment', {}),
+           'static', {}
+        )
+
+        for k, v in fprof_env.items():
+            if not v:
+                continue
+
+            tmp[k] = v
+
+        tmp['NODE_NVM_RCFILE'] = rcfile
+
+        return my_subcfg
+
+
+class DockConfNormImgOptFeatNodeNvmProfileFilesInst(NormalizerNamed):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'config', DefaultSetterConstant({})
+        )
+
+        super(DockConfNormImgOptFeatNodeNvmProfileFilesInst, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['node', 'from_profiles', 'files', SUBDICT_METAKEY_ANY]
+
+    @property
+    def name_key(self):
+        return 'path'
+
+    @property
+    def simpleform_key(self):
+        return 'enabled'
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        if not my_subcfg['enabled']:
+            return my_subcfg
+
+        pcfg = self.get_parentcfg(cfg, cfgpath_abs, level=4)
+
+        c = setdefault_none(my_subcfg, 'config', {})
+
+        setdefault_none(c, 'state', 'present')
+        setdefault_none(c, 'create', True)
+        setdefault_none(c, 'insertbefore', 'BOF')
+        setdefault_none(c, 'marker',
+           '# {mark} ANSIBLE MANAGED BLOCK: SOURCE NVM RC-FILE'
+        )
+
+        setdefault_none(c, 'prepend_newline', True)
+        setdefault_none(c, 'append_newline', True)
+
+        c['path'] = my_subcfg['path']
+        c['block'] = '\n. "{}"\n'.format(pcfg['installer']['rcfile'])
+
+        return my_subcfg
+
+
+class DockConfNormImgOptFeatNodeNvmProfileDDirsInst(NormalizerNamed):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        ## some *.d dirs force specific file endings
+        ## for files to be picked up
+        self._add_defaultsetter(kwargs,
+          'file_ending', DefaultSetterConstant('sh')
+        )
+
+        self._add_defaultsetter(kwargs,
+          'config', DefaultSetterConstant({})
+        )
+
+        super(DockConfNormImgOptFeatNodeNvmProfileDDirsInst, self).__init__(pluginref, *args, **kwargs)
+
+    @property
+    def config_path(self):
+        return ['node', 'from_profiles', 'd_dirs', SUBDICT_METAKEY_ANY]
+
+    @property
+    def name_key(self):
+        return 'path'
+
+    @property
+    def simpleform_key(self):
+        return 'enabled'
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        if not my_subcfg['enabled']:
+            return my_subcfg
+
+        pcfg = self.get_parentcfg(cfg, cfgpath_abs, level=4)
+
+        fname = my_subcfg.get('file_name', None)
+
+        if not fname:
+            fname = "40_ansible_node_nvm.{}".format(my_subcfg['file_ending'])
+            my_subcfg['file_name'] = fname
+
+        c = setdefault_none(my_subcfg, 'config', {})
+
+        setdefault_none(c, 'mode', '0755')
+
+        c['dest'] = "{}/{}".format(my_subcfg['path'], fname)
+        c['content'] = textwrap.dedent("""\
+           ##
+           ## file auto generated by ansible, DO NOT EDIT!
+           ##
+
+           ## source nvm rc setup
+           . "{}"
+           """.format(pcfg['installer']['rcfile'])
+        )
 
         return my_subcfg
 
