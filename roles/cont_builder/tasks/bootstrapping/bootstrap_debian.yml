@@ -46,6 +46,22 @@
       - block:
 
             ##
+            ## note: package "python3-apt" is absolutely necessary to
+            ##   make ansible apt modules work, this module is only
+            ##   avaible as deb package and not on pip, it seemingly
+            ##   also only works with distro distributed pythons,
+            ##   not custom installed ones (but maybe this is possible
+            ##   with some config effort??)
+            ##
+          - name: install python core dependencies
+            ansible.builtin.raw: >-
+              export {{ _tmp_bootstrap_env | smabot.base.kvlist | join(' ') }}
+              && apt-get update
+              && apt-get install -y --no-install-recommends python3-apt
+              && rm -rf /var/lib/apt/lists/*
+
+
+            ##
             ## note: if a python interpreter is already pre-installed,
             ##   there is a good chance this was not done using system
             ##   package manager, meaning we also cannot use system

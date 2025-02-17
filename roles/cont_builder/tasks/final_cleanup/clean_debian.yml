@@ -6,8 +6,12 @@
     ansible.builtin.apt:
       autoclean: yes
       autoremove: yes
+    vars:
+      ansible_python_interpreter: >-
+        {{ _os_py_extra_vars.ansible_python_interpreter }}
 
 
   - name: make sure apt package cache is empty
     ansible.builtin.command: rm -rf /var/lib/apt/lists/*
+
 

@@ -18,6 +18,7 @@
          | smabot.base.get_subdict(keychain=_my_cfgref.cfgkey)
         }}
       _autovcfg_iter: "{{ _my_cfgref.autover }}"
+      _os_py_extra_vars: {}
 
 
   - name: make optional custom vars avaible for contbuild role
@@ -106,6 +107,49 @@
           name: smabot.base.extended_facts
 
 
+      - name: >-
+          check if an os python interpreter overwrite is defined
+          for this os type
+        set_fact:
+          _cur_os_py_overwrite_res:
+          _cur_os_py_overwrite: >-
+            {{ _cur_dockimg.ansible.interpreter.os_overwrite[(ansible_os_family | lower)]
+             | default(None, True) }}
+
+
+      - block:
+
+          - name: expand given py os interpreter override
+            ansible.builtin.raw: >-
+              echo {{ _cur_os_py_overwrite }}
+            register: _tmp_ospy_ov_expanded
+            changed_when: false
+
+          - set_fact:
+              _cur_os_py_overwrite_res: >-
+                {{ _tmp_ospy_ov_expanded.stdout_lines | first }}
+
+        when: >-
+          _cur_os_py_overwrite is truthy
+
+
+      - block:
+
+          - set_fact:
+              _cur_os_py_overwrite_res: >-
+                {{ ansible_facts.python.executable }}
+
+        when: >-
+          _cur_os_py_overwrite is falsy
+
+
+      - set_fact:
+          _os_py_extra_vars: >-
+            {{ _os_py_extra_vars
+             | combine({'ansible_python_interpreter': _cur_os_py_overwrite_res})
+            }}
+
+
 ## do steps prepackage
       - name: handle custom pre package install steps
         include_tasks: "{{ _cur_dockimg.steps.pre_packages }}"
@@ -145,6 +189,9 @@
           copy_to_image_args:
             copy_cfg: "{{ _cur_dockimg.docker_copy }}"
             image_config: "{{ _cur_dockimg }}"
+          ansible_python_interpreter: >-
+            {{ _os_py_extra_vars.ansible_python_interpreter }}
+
 
 ## TODO: make this its own role
       - name: ensure py pip is up to date  ==>>  {{ _cur_dockimg.fullname }}
@@ -298,6 +345,8 @@
             vars:
               handle_system_certs_args: >-
                 {{ _cur_dockimg.ssl_certs | default({}, True) }}
+              ansible_python_interpreter: >-
+                {{ _os_py_extra_vars.ansible_python_interpreter }}
 
             ##
             ## note: some ssl systems needs specific env vars set,

@@ -33,4 +33,7 @@
       }}
     loop_control:
       loop_var: _iter_packinst
+    vars:
+      ansible_python_interpreter: >-
+        {{ _os_py_extra_vars.ansible_python_interpreter }}
 

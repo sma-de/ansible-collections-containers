@@ -10,6 +10,41 @@
       python --version || python3 --version
     register: _tmp_py_installed
     failed_when: false
+    changed_when: false
+
+
+  - block:
+
+      - name: get real pre-installed python path
+        ansible.builtin.raw: >-
+          which python || which python3
+        register: _tmp_py_preinst_path
+        changed_when: false
+
+
+        ##
+        ## note: some upstream images where you would not expect
+        ##   it like the library python image have weirdly
+        ##   another python installed and linked in "/usr/bin",
+        ##   which can lead to programs like for example ansible
+        ##   itself leading to use the wrong interpreter, this step
+        ##   should make sure this never happens by force symlinking
+        ##   the standard names to the python we want
+        ##
+      - name: ensure /usr/bin names are linked to "real python"
+        ansible.builtin.file:
+          src: "{{ _tmp_py_preinst_path.stdout_lines | first }}"
+          dest: "{{ _items_interpreter_symlinks.dest }}"
+          force: true
+          state: link
+        loop:
+          - dest: /usr/bin/python
+          - dest: /usr/bin/python3
+        loop_control:
+          loop_var: _items_interpreter_symlinks
+
+    when: _tmp_py_installed.rc == 0
+
 
     ##
     ## update: even when a python interpreter is installed
