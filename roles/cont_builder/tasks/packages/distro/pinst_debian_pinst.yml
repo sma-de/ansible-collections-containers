@@ -1,0 +1,23 @@
+---
+
+  - name: >-
+      standard distro package installs / removes (debian)
+       ==>>  {{ _cur_dockimg.fullname }}
+    ansible.builtin.apt: "{{ _iter_packinst }}"
+    when: >-
+     (_cur_dockimg.packages.distro._export_cfgs.sources.bad_sources | default(False))
+     is falsy
+
+
+  - block:
+
+      - name: >-
+          standard distro package installs / removes (debian)
+           ==>>  {{ _cur_dockimg.fullname }}
+        ansible.builtin.shell: |
+          {{ _iter_packinst | smabot.containers.to_apt_install_script }}
+
+    when: >-
+     (_cur_dockimg.packages.distro._export_cfgs.sources.bad_sources | default(False))
+     is truthy
+

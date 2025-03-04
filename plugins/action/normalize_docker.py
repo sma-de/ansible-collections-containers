@@ -7,6 +7,7 @@ import abc
 import collections
 import copy
 import os 
+import json
 import pathlib
 import re
 import textwrap
@@ -1220,6 +1221,58 @@ class DockConfNormImageDistroPackages(DockConfNormImageXPackBase):
     @property
     def config_path(self):
         return ['distro']
+
+    def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
+        my_subcfg = super(DockConfNormImageDistroPackages, self)._handle_specifics_postsub(
+           cfg, my_subcfg, cfgpath_abs
+        )
+
+        ##
+        ## handle "bad sources" workaround where actually not the
+        ## sources seem to be "bad" but ansible apt upstream module is buggy
+        ##
+        sources_base = my_subcfg.get('sources', None) or {}
+        sources = sources_base.get('sources', None) or {}
+
+        bad_sources = {}
+        bad_sources_keep = {}
+
+        if sources:
+            for k, v in sources.items():
+
+                if v.get('disabled', True):
+                    continue
+
+                tmp = v.get('needs_apt_workaround', None)
+
+                if tmp is None:
+                    tmp = False
+
+                if not tmp:
+                    continue
+
+                bad_sources[k] = None
+
+                tmp = v.get('keep_buggy_source', None)
+
+                if tmp is None:
+                    tmp = True
+
+                if tmp:
+                    bad_sources_keep[k] = v
+
+        if bad_sources:
+            tmp = setdefault_none(my_subcfg, '_export_cfgs', {})
+            tmp = setdefault_none(tmp, 'sources', {})
+            tmp['bad_sources'] = bad_sources
+
+            if bad_sources_keep:
+                bkb = copy.deepcopy(sources_base)
+                bkb['sources'] = bad_sources_keep
+
+                tmp['bad_sources_keep'] = bkb
+
+        return my_subcfg
 
 
 

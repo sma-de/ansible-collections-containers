@@ -150,6 +150,11 @@
             }}
 
 
+      - set_fact:
+          package_handling_python_overwrite: >-
+            {{ _os_py_extra_vars.ansible_python_interpreter }}
+
+
 ## do steps prepackage
       - name: handle custom pre package install steps
         include_tasks: "{{ _cur_dockimg.steps.pre_packages }}"
@@ -162,6 +167,8 @@
         vars:
           smabot_base_custom_apt_sources_args: >-
             {{ _cur_dockimg.packages.distro.sources }}
+          ansible_python_interpreter: >-
+            {{ _os_py_extra_vars.ansible_python_interpreter }}
         when: >-
           ansible_os_family == "Debian" and
           (_cur_dockimg.packages.distro.sources | default(False)) is truthy
@@ -189,8 +196,6 @@
           copy_to_image_args:
             copy_cfg: "{{ _cur_dockimg.docker_copy }}"
             image_config: "{{ _cur_dockimg }}"
-          ansible_python_interpreter: >-
-            {{ _os_py_extra_vars.ansible_python_interpreter }}
 
 
 ## TODO: make this its own role

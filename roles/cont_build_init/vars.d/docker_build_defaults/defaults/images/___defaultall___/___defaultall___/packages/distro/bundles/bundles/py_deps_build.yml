@@ -1,0 +1,27 @@
+---
+
+  ##
+  ## opt-in default bundle for building py-pip libs
+  ##
+  py_deps_build:
+    enable: false
+    packages:
+
+      build-essential:
+        ## normally we only need it during image build and it should be removed again at the end
+        temporary: true
+        os_overwrites:
+          alpine:
+            name: build-base
+
+      python3-dev:
+        temporary: true
+      libffi-dev:
+        temporary: true
+
+      libssl-dev:
+        temporary: true
+        os_overwrites:
+          alpine:
+            name: openssl-dev
+

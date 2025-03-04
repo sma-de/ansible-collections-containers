@@ -1,0 +1,7 @@
+---
+
+  git:
+    packages:
+      git:
+      openssh-client:
+

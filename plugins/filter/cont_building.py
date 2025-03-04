@@ -10,6 +10,7 @@ import collections
 import copy
 import re
 import os
+import json
 
 from ansible.errors import AnsibleFilterError, AnsibleOptionsError
 from ansible.module_utils.six import string_types
@@ -660,6 +661,74 @@ class UpdateParentFilter(FilterBase):
 
 
 
+##
+## gets a param map fitting the nsible.builtin.apt interface
+## and returns a shell script which more or less does the
+## same as apt module should have done
+##
+## TODO: support other apt-module options or at least throw error when unsupported opt given???
+##
+class AptInstallScriptFilter(FilterBase):
+
+    FILTER_ID = 'to_apt_install_script'
+
+##    @property
+##    def argspec(self):
+##        tmp = super(AptInstallScriptFilter, self).argspec
+##
+##        tmp.update({
+##          'autover': ([collections.abc.Mapping],),
+##          'method': (list(string_types),),
+##          'method_args': ([collections.abc.Mapping],),
+##        })
+##
+##        return tmp
+
+
+    def run_specific(self, value):
+        if not isinstance(value, collections.abc.Mapping):
+            raise AnsibleOptionsError("filter input must be a mapping")
+
+        ##display.vvv("AptInstallScriptFilter.run_specific: input mapping:\n{}".format(json.dumps(value, indent=2)))
+
+        res = []
+
+        if value.get('update_cache', False):
+            res.append("apt-get update")
+
+        plist = None
+
+        ## go through package list param name aliases, first one hit wins
+        for x in ['name', 'package', 'pkg']:
+            hit = value.get(x, None)
+
+            if hit:
+                if isinstance(hit, string_types):
+                    hit = [hit]
+
+                plist = hit
+                break
+
+        ansible_assert(plist,
+            "given apt install params seems not to contain a single"\
+            " package to install, this seems strange:\n{}".format(
+                json.dumps(value, indent=2)
+            )
+        )
+
+        inst_opts = []
+
+        if not value.get('install_recommends', False):
+            inst_opts.append("--no-install-recommends")
+            inst_opts.append("--no-install-suggests")
+
+        inst_opts.append("-y")
+
+        res.append("apt-get install {}".format(' '.join(inst_opts + plist)))
+        return '\n'.join(res)
+
+
+
 # ---- Ansible filters ----
 class FilterModule(object):
     ''' filter related to container building '''
@@ -676,6 +745,7 @@ class FilterModule(object):
            DecoToLabelsFilter,
            PSetsFilter,
            UpdateParentFilter,
+           AptInstallScriptFilter,
         ]
 
         for f in tmp:

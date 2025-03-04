@@ -84,6 +84,9 @@
                 packages:
                   default:
                     rsync:
+              vars:
+                ansible_python_interpreter: >-
+                  {{ package_handling_python_overwrite | default(None) }}
             when: _tmp_check_rsync.rc != 0
 
           - set_fact:

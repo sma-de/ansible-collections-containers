@@ -4,6 +4,11 @@
 ### TODO: this whole role is workaround for a strange bug with updating facts from collection modules, remove it when it is not needed anymore, see corresponding role for merge vars for details
 ###
 
+    ## this role supports vars.d
+  - include_role:
+      name: smabot.base.expand_vardirs
+
+
   - set_fact:
       _tmp_norm_resvar: >-
         {{ normalize_docker_args.config_ansvar | default('docker_build', True) }}

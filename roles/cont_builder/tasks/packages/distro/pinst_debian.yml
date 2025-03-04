@@ -20,10 +20,7 @@
     ##      -> be explicit here on default and dont install 
     ##         more than what was asked for
     ##
-  - name: >-
-      standard distro package installs / removes (debian) 
-       ==>>  {{ _cur_dockimg.fullname }}
-    ansible.builtin.apt: "{{ _iter_packinst }}" 
+  - include_tasks: pinst_debian_pinst.yml
     loop: >-
       {{ _cur_dockimg.packages.distro 
        | smabot.containers.to_psets(os_defaults={
@@ -36,4 +33,23 @@
     vars:
       ansible_python_interpreter: >-
         {{ _os_py_extra_vars.ansible_python_interpreter }}
+
+
+  - name: >-
+      remove (eventually only temporary) buggy custom apt
+      sources so build can run through without errors
+    ansible.builtin.file:
+      path: >-
+        {{ '/etc/apt/sources.list.d/'
+         ~ smabot_base_custom_apt_sources_args_normed.sources[_iter_bad_sources.key].apt_file
+         ~ '.list'
+        }}
+      state: absent
+    loop: >-
+      {{ _cur_dockimg.packages.distro._export_cfgs.sources.bad_sources | dict2items }}
+    loop_control:
+      loop_var: _iter_bad_sources
+    when: >-
+      (_cur_dockimg.packages.distro._export_cfgs.sources.bad_sources | default(False))
+      is truthy
 

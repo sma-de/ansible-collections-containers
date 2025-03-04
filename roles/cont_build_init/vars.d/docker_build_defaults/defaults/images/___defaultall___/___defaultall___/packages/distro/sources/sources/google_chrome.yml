@@ -1,0 +1,85 @@
+---
+
+  google_chrome:
+
+    ##
+    ## note: as most inherting images wont need it this
+    ##   source is made opt-in, so an image which want
+    ##   to use it must explicitly activate it
+    ##
+    disabled: true
+
+    ##
+    ## this custom apt source and mabye others have the problem
+    ## of making ansible.builtin.apt not work anymore (still
+    ## the case on: 2025/03/01), resulting in errors like this:
+    ##
+    ##  """
+    ##  E:Conflicting values set for option Signed-By regarding
+    ##  source [...]: <keyring-file-path> != , E:The list of
+    ##  sources could not be read.
+    ##  """
+    ##
+    ## this is a somewhat well-known issue:
+    ##
+    ##   -> https://www.baeldung.com/linux/conflicting-values-error-resolution
+    ##   -> https://unix.stackexchange.com/q/732030
+    ##
+    ## but none of the typical error causes seem to be the
+    ## problem here, actually apt-get update / apt update
+    ## and also apt-get install work fine with this source,
+    ## only the ansible apt module and some more obscure
+    ## apt sub-pograms it calls internally (apt-mark ??)
+    ## seem to have an issue with it, which makes this
+    ## feel like an upstream bug issue for which we have
+    ## implemented an work around which can be enabled
+    ## for custom sources setting this flag
+    ##
+    ## update: at least for this source the error has vanished
+    ##   magically over the weekend, workaround not needed anymore
+    ##
+    ## needs_apt_workaround: true
+
+    ##
+    ## this flag is related to the "needs_apt_workaround"
+    ## flag which will remove this source temporarly to
+    ## make the build go through with errors, the question
+    ## is at the end of container image creation should it
+    ## be re-instated to make it avaible for running
+    ## containers or downstream builds (again, apt-get
+    ## commands should be fine) or should we keep it left
+    ## out as we dont expect to need it ever again post
+    ## main distro package install, default is true (keep)
+    ##
+    ## keep_buggy_source: false
+
+    signing:
+
+      ##src_url: >-
+      ##  https://dl-ssl.google.com/linux/linux_signing_key.pub
+
+      ##dest: ## optional, defaults to: /etc/apt/keyrings/{mapkey}.asc
+
+      ## ##
+      ## ## to optionally de-armor ascii / base64 encoded keys, see:
+      ## ##   -> https://wiki.ubuntuusers.de/apt/Schl%C3%BCsselverwaltung/#Schluessel-hinzufuegen
+      ## ##   -> https://www.linuxuprising.com/2021/01/apt-key-is-deprecated-how-to-add.html
+      ## ##
+      ## de_armor: true
+
+      ## alternative to src-url, will use gpg key-servers to get key from fingerprint
+      fingerprints: "32EE5355A6BC6E42"
+      ## fingerprints:
+      ##   ##"<key_server_options>"??
+      ##   fingerprints:
+      ##     "32EE5355A6BC6E42":
+      ##       ## fingerprint: defaults to mapkey
+
+    ##apt_file: ## defaults to mapkey
+
+    attributes:
+      arch: amd64
+
+    source_line: >-
+      deb {attributes} https://dl.google.com/linux/chrome/deb/ stable main
+

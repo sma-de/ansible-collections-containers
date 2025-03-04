@@ -48,4 +48,7 @@
         {{ _copy_packages | dict2items | map(attribute='value')
          | rejectattr("pre_installed") | map(attribute='name') | list }}
       state: absent
+    vars:
+      ansible_python_interpreter: >-
+        {{ package_handling_python_overwrite | default(None) }}
 

@@ -1,6 +1,17 @@
 ---
 
-  # TODO: is there more senseable stuff
+  - name: re-add "buggy" custom apt sources marked to be kept
+    include_role:
+      name: smabot.base.custom_apt_sources
+    vars:
+      smabot_base_custom_apt_sources_args: >-
+        {{ _cur_dockimg.packages.distro._export_cfgs.sources.bad_sources_keep }}
+      ansible_python_interpreter: >-
+        {{ _os_py_extra_vars.ansible_python_interpreter }}
+    when: >-
+      (_cur_dockimg.packages.distro._export_cfgs.sources.bad_sources_keep | default(False))
+      is truthy
+
 
   - name: auto clean os packages
     ansible.builtin.apt:
