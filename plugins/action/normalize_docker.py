@@ -34,6 +34,8 @@ from ansible_collections.smabot.containers.plugins.module_utils.common import \
   DOCKER_CFG_DEFAULTVAR
 
 from ansible_collections.smabot.base.plugins.module_utils.utils.utils import ansible_assert
+from ansible_collections.smabot.base.plugins.module_utils.utils import \
+  maven as maven_base_utils
 
 from ansible.utils.display import Display
 
@@ -1143,6 +1145,11 @@ class DockConfNormImageXPackBase(NormalizerBase):
                 v = self._norm_single_pack_ex(cfg, my_subcfg, cfgpath_abs, v)
                 nps[k] = v
 
+                ## optionally make own install package configs for
+                ## split out sub-package definitions when found
+                for spk, spv in v.get('split_subpackages_extra', {}).items():
+                    nps[spk] = merge_dicts(copy.deepcopy(v), spv)
+
                 av = v.get('auto_versioned', False)
 
                 if av:
@@ -1652,6 +1659,158 @@ class DockConfNormImageMavenPackages(DockConfNormImageXPackBase):
         coords = setdefault_none(p, 'coordinates', {})
 
         setdefault_none(coords, 'aid', p['name'])
+
+        ## default unset package version to release
+        setdefault_none(p, 'version', 'release')
+
+        existing_versions = None
+
+        def load_all_versions():
+            last_err = None
+            subargs = {
+               'art_id': coords['aid'],
+               'group_id': coords['gid'],
+            }
+
+            srclst = p.get('sources', None)
+
+            if not srclst:
+                return maven_base_utils.get_artifact_versions(**subargs)
+
+            for x in srclst:
+                subargs['repo_url'] = x['url']
+
+                try:
+                    return maven_base_utils.get_artifact_versions(**subargs)
+                except urllib.error.HTTPError as e:
+                    last_err = e
+
+            raise last_err
+
+        def expand_magic_mvn_verkey(key, vermap):
+            pver = vermap[key]
+
+            if pver:
+                return pver
+
+            ## try other magic keyword as fallback
+            if pvtype == 'release':
+                pver = vermap['latest']
+            elif pvtype == 'latest':
+                pver = vermap['release']
+
+            if pver:
+                return pver
+
+            ## use last element of version list as final fallback
+            return vermap['versions'][-1]
+
+        ## convert symbolic "moving" release descriptors
+        ## to actual release numbers
+        if p['version'] in ['release', 'latest']:
+            pvtype = p['version']
+            p['version_type'] = pvtype
+
+            tmp = load_all_versions()
+            existing_versions = tmp
+
+            pver = expand_magic_mvn_verkey(pvtype, tmp)
+            p['version'] = pver
+
+        elif p.get('version_type', '') == 'indexed':
+            ## optional indexed format, interpret given version value as
+            ## index for maven version list and select real version with it
+            tmp = load_all_versions()
+            existing_versions = tmp
+
+            pver =  p['version']
+            p['version_type'] = 'indexed[{}]'.format(pver)
+            pver = tmp['versions'][int(p['version'])]
+            p['version'] = pver
+
+        ##
+        ## optionally handle extra version optional feature, which
+        ## makes it easy to install different versions of the same
+        ## package side by side
+        ##
+        exvers = p.get('extra_versions', None)
+
+        if exvers:
+            if not existing_versions:
+                existing_versions = load_all_versions()
+
+            try:
+                ## check if simple integer is given as extra versions
+                exvers = int(exvers)
+
+                ## interpret it as number of extra version to take,
+                ## relative from given base version
+                ## ("+" => newer, "-" => older)
+
+                ## determine start position of current version in verlst
+                vpos = 0
+                for vx in existing_versions['versions']:
+                    if vx == p['version']:
+                        break
+
+                    vpos += 1
+
+                slicers = sorted([vpos, vpos + exvers])
+                exvers = existing_versions['versions'][slicers[0]:slicers[1]]
+
+            except (ValueError,TypeError):
+                ## extra vers not a simple integer, assume a preset
+                ## list of explicit versions, replace symbolic
+                ## version names in it
+                new_exvers = set()
+
+                for x in exvers:
+                    if x in ['latest', 'release']:
+                        x = expand_magic_mvn_verkey(x, existing_versions)
+
+                    new_exvers.add(x)
+
+                exvers = list(new_exvers)
+
+            ## ensure main version is never part of extra versions
+            exvers = list(filter(lambda x: x != p['version'], exvers))
+            p['extra_versions'] = exvers
+
+            if exvers:
+                ##
+                ## alter config to ensure that instead of single package
+                ## install config we get one per each extra version
+                ## (plus the main version one)
+                ##
+                p['split_subpackages_extra'] = {}
+
+                orig_dp = p['destination']['path']
+                slash_end = ''
+
+                if orig_dp[-1] == '/':
+                    slash_end = '/'
+                    orig_dp = orig_dp[:-1]
+
+                for x in exvers:
+                    ##
+                    ## note: obviously we cannot install (or at least should
+                    ##   not) install all the different version variants
+                    ##   into the same destdir, so in this scenario instdir
+                    ##   is altered by adding one additional per version
+                    ##   sub-level
+                    ##
+                    p['split_subpackages_extra']["{}_{}".format(p['name'], x)] = {
+                        'version': x,
+                        'destination': {
+                            'path': "{}/{}{}".format(orig_dp, x, slash_end)
+                        },
+                    }
+
+                ## dont forget to adapt dest path accordingly
+                ## for main version also
+                p['destination']['path'] = "{}/{}{}".format(
+                    orig_dp, p['version'], slash_end
+                )
 
         if not p.get('auto_versioned', False):
             setdefault_none(coords, 'ver', p['version'])
