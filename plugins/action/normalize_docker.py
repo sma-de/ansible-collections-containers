@@ -1755,7 +1755,7 @@ class DockConfNormImageMavenPackages(DockConfNormImageXPackBase):
 
                     vpos += 1
 
-                slicers = sorted([vpos, vpos + exvers])
+                slicers = sorted([vpos, max(vpos + exvers, 0)])
                 exvers = existing_versions['versions'][slicers[0]:slicers[1]]
 
             except (ValueError,TypeError):
