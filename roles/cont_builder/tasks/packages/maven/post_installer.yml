@@ -19,6 +19,13 @@
         ansible.builtin.shell:
           cmd: "{{ _tmp_post_inst_args.cmd }}"
 
+        ##
+        ## note: as this has potential to hang forever
+        ##   add a customizable timeout
+        ##
+        timeout: >-
+          {{ _iter_packinst.destination.install.timeout | default(0, True) }}
+
     when: _iter_packinst.destination.install.shell
 
 
