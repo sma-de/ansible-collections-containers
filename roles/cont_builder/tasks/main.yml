@@ -30,6 +30,19 @@
       loop_var: _iter_cvars
 
 
+    ##
+    ## on default, when not explicitly disabled by caller, allow to
+    ## "break python system packages", this is basically the opposite
+    ## python and also ansible do on default but we deem it safe in
+    ## container building setup and actually more sensible in this
+    ## context than working with venvs
+    ##
+  - set_fact:
+      SMABOT_BASE_PIPEXT_PADEF_FORCE_BREAK_SYSTEM_PACKAGE: true
+    when: >-
+      SMABOT_BASE_PIPEXT_PADEF_FORCE_BREAK_SYSTEM_PACKAGE is not defined
+
+
   - set_fact:
       _dbuild_meta: {}
       _java_proxy_env: {}

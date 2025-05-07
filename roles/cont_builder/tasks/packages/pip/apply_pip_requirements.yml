@@ -29,6 +29,6 @@
 
 
   - name: apply pip requirements to target  ==>>  {{ _pipreq_iter.get('id', _pipreq_iter.path) }}
-    ansible.builtin.pip:
+    smabot.base.pip_ext:
       requirements: "{{ _tmp_dest }}"
 
