@@ -2147,7 +2147,10 @@ class DockConfNormImageAutoVersioning(NormalizerBase):
 
         ## note: using only the latest version for auto versioning 
         ##   is actually a pretty senseable generic default I reckon
-        subfn_args.setdefault('subselect', -1)
+        setdefault_none(subfn_args, 'subselect', -1)
+
+        ## also ignoring pre releases as default seems also a good idea
+        setdefault_none(subfn_args, 'pre_releases', False)
 
 
     def _norm_margs_github_releases(self, method_args, cfg, cfgpath_abs):
