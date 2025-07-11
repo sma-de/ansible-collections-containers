@@ -1,0 +1,25 @@
+---
+
+##
+## variables / "args" for this handler:
+##
+##  smabot_dockcompose_prjdir: # project srcdir, mandatory
+##
+##  # to optionally wait for restarted webservice to get ready again, directly passed through to called role
+##  smabot_base_wait_until_webservice_ready_args:
+##
+
+  - name: "restart docker compose project"
+    community.docker.docker_compose:
+      project_src: "{{ smabot_dockcompose_prjdir }}"
+      restarted: true
+    notify: "wait until webservice is ready"
+
+
+## TODO: unfortunately atm it is not possible to call a role from a
+##   handler and it is not clear if this will ever change at all: https://github.com/ansible/ansible/issues/20493#issuecomment-1028003619
+##  - ansible.builtin.include_role:
+##      name: smabot.base.wait_until_webservice_ready
+##    when: >-
+##      smabot_base_wait_until_webservice_ready_args is defined
+

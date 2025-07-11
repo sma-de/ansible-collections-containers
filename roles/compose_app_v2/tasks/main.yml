@@ -1,0 +1,66 @@
+---
+
+##
+## args:
+##
+##   smabot_dockcompose_prjdir: # dir on remote to use as compose project dir (mandatory)
+##   smabot_dockcompose_prjname: # project name, optional, defaults to basename of prjdir
+##
+##   # list of file paths to docker-compose files for this app, will be templated with j2
+##   # optionally, defaults to: {{ parent_role }}/templates/docker-compose.yml.j2
+##   smabot_dockcompose_srcfiles:
+##
+##   smabot_dockcompose_extra_args: # optional extra args passed through to docker compose module
+##
+##   # optional config to wait for started service(s) to get ready, implicitly passed through to upstream role
+##   smabot_base_wait_until_webservice_ready_args:
+##
+
+  - set_fact:
+      smabot_dockcompose_prjname: >-
+        {{ smabot_dockcompose_prjname
+         | default(smabot_dockcompose_prjdir | basename) }}
+
+
+  - name: assure docker-compose project dir exists
+    ansible.builtin.file:
+      path: "{{ smabot_dockcompose_prjdir }}"
+      state: directory
+
+
+  - set_fact:
+      _tmp_dockcompose_target_files: []
+      _tmp_dockcompose_file_intemplates: >-
+         {{ smabot_dockcompose_srcfiles | default(
+              [(ansible_parent_role_paths | first) ~ "/templates/docker-compose.yml.j2"],
+              True
+            )
+         }}
+
+  - ansible.builtin.include_tasks: template_dockcomp_files.yml
+    loop: "{{ _tmp_dockcompose_file_intemplates }}"
+    loop_control:
+      loop_var: _iter_dcomp_files
+
+
+  - set_fact:
+      _tmp_composer_args: >-
+        {{ smabot_dockcompose_extra_args | default({}, True)
+         | combine({
+             'project_src': smabot_dockcompose_prjdir,
+             'project_name ': smabot_dockcompose_prjname,
+             'files ': _tmp_dockcompose_target_files,
+           })
+        }}
+
+  - name: docker-compose  ==>>  {{ smabot_dockcompose_prjname }}
+    community.docker.docker_compose_v2:
+      project_src: "{{ smabot_dockcompose_prjdir }}"
+      state: present
+
+
+    ## optionally wait for service to become ready
+  - ansible.builtin.include_role:
+      name: smabot.base.wait_until_webservice_ready
+    when: smabot_base_wait_until_webservice_ready_args is defined
+

@@ -1,0 +1,15 @@
+---
+
+  - set_fact:
+      _tmp_dockcompose_target_files: >-
+        {{ _tmp_dockcompose_target_files + [
+              _iter_dcomp_files | basename | smabot.base.strip_file_endings(count=1)
+           ]
+        }}
+
+  - name: template docker-compose file(s)
+    ansible.builtin.template:
+      src: "{{ _iter_dcomp_files }}"
+      dest: "{{ smabot_dockcompose_prjdir ~ '/' ~ _tmp_dockcompose_target_files | last }}"
+    notify: "restart docker compose project v2"
+

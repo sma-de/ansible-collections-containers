@@ -8,3 +8,7 @@
       {{ role_path }}/handlers/restart_dockcompose_impl.yml
     listen: "restart docker compose project"
 
+  - ansible.builtin.include_tasks: >-
+      {{ role_path }}/handlers/restart_dockcompose_impl_v2.yml
+    listen: "restart docker compose project v2"
+
