@@ -12,7 +12,7 @@
   - name: "restart docker compose project (v2)"
     community.docker.docker_compose_v2:
       project_src: "{{ smabot_dockcompose_prjdir }}"
-      restarted: true
+      state: restarted
     notify: "wait until webservice is ready"
 
 
