@@ -9,8 +9,8 @@
 ##  smabot_base_wait_until_webservice_ready_args:
 ##
 
-  - name: "restart docker compose project"
-    community.docker.docker_compose:
+  - name: "restart docker compose project (v2)"
+    community.docker.docker_compose_v2:
       project_src: "{{ smabot_dockcompose_prjdir }}"
       restarted: true
     notify: "wait until webservice is ready"
