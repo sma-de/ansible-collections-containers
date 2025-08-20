@@ -1,0 +1,75 @@
+---
+
+  ##- name: left container env, revert back to original python interpreter
+  ##  set_fact:
+  ##    ansible_python_interpreter: >-
+  ##      {{ anspy_original }}
+
+
+  ##- name: reset facts to docker host machine
+  ##  ansible.builtin.setup:
+
+  - set_fact:
+      _build_img_tmpname: "{{ _bcon_name }}-tmpimg"
+
+  - name: save build container to image  ==>>  {{ _cur_dockimg.fullname }}
+    smabot.containers.docker_commit:
+      container: "{{ _bcon_name }}" ## id or tag, mandatory
+      image_name: "{{ _build_img_tmpname }}" ## image name, mandatory
+      ##image_tag: ## optional, defaults to docker default (latest)
+
+      ## if image already exists, it will not be overwritten unless 
+      ## force is set, existing here means simply something with given 
+      ## image name + tag exist already on docker node or is pullable
+      force: True
+
+      authors: "{{ _cur_dockimg.authors | default(omit, true) }}"
+
+      ## TODO: complete keywords
+      docker_keywords:
+        ## 1:1 analogous to dockerfile statements with the same name, all optional
+        CMD: "{{ _cur_dockimg.docker_cmd }}"
+        ENTRYPOINT: "{{ _cur_dockimg.entrypoint }}"
+        ENV: "{{ _cur_dockimg.environment.static | default(omit, True) }}"
+        EXPOSE: "{{ _cur_dockimg.expose | default(omit, True) }}"
+        LABEL: "{{ _cur_image_labels }}"
+        USER: "{{ _cur_dockimg.docker_user.initial | default('root', True) }}"
+        WORKDIR: "{{ _cur_dockimg.workdir | default(omit, True) }}"
+
+
+  - set_fact:
+      _build_tags: []
+
+    ##
+    ## note: atm when handling a batch of multiple "variant" builds (autoversioning) only add custom fixed preset tags to "latest" version
+    ## TODO: do we need the possibility here to finetune this more???
+    ##
+  - set_fact:
+      _build_tags: "{{ _build_tags + _cur_dockimg.tags }}"
+    when: _autovcfg_iter.latest
+
+  - set_fact:
+      _build_tags: "{{ _autovcfg_iter.tags + _build_tags }}"
+    when: _autovcfg_iter.tags | default(False, True)
+
+  - name: >-
+      no explicit tags for this build found, so build default 
+      tag latest  ==>>  {{ _cur_dockimg.fullname }}
+    set_fact:
+      _build_tags: ['latest']
+    when: not _build_tags
+
+
+  - include_tasks: postbuild_tasks.yml
+    loop: "{{ _build_tags }}"
+    loop_control:
+      loop_var: _btag_iter
+
+
+  - set_fact:
+      _cur_image_meta: >-
+        {{ _cur_image_meta | combine({'builds': [_dbuild_meta]},
+            recursive=True, list_merge='append')
+        }}
+    when: docker_build.meta.create
+

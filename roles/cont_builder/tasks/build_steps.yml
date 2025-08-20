@@ -1,0 +1,490 @@
+---
+
+    ##
+    ## note: as we handle docker images / container as standard
+    ##   ansible remote hosts, we need to have python installed there,
+    ##   this means that any image build by this setup will contain a
+    ##   python installation as we will keep it installed because it
+    ##   is not unlikely that the user might want to install python
+    ##   herself as part of her plan for the image and it would be
+    ##   very hard to decide if python was only installed because
+    ##   of ansible or because it really was requested by image setup
+    ##
+    ## if for a specific image the builder really, really dont want
+    ## python in it we will provide a custom flag to set to force
+    ## removing python again when building is through
+    ##
+
+  - name: bootstrap container system for ansible usage
+    include_tasks: bootstrapping/main.yml
+
+
+    ##
+    ## note: standard facts gathering does not work because 
+    ##   python is needed for it, luckily it can be called 
+    ##   later explicitly like a normal module
+    ##
+  - name: gather facts for  ==>>  {{ _cur_dockimg.fullname }}
+    ansible.builtin.setup:
+
+
+    # also collect extended custom facts (e.g. java homes, pip's, ...)
+  - include_role:
+      name: smabot.base.extended_facts
+
+
+  - name: >-
+      check if an os python interpreter overwrite is defined
+      for this os type
+    set_fact:
+      _cur_os_py_overwrite_res:
+      _cur_os_py_overwrite: >-
+        {{ _cur_dockimg.ansible.interpreter.os_overwrite[(ansible_os_family | lower)]
+         | default(None, True) }}
+
+
+  - block:
+
+      - name: expand given py os interpreter override
+        ansible.builtin.raw: >-
+          echo {{ _cur_os_py_overwrite }}
+        register: _tmp_ospy_ov_expanded
+        changed_when: false
+
+      - set_fact:
+          _cur_os_py_overwrite_res: >-
+            {{ _tmp_ospy_ov_expanded.stdout_lines | first }}
+
+    when: >-
+      _cur_os_py_overwrite is truthy
+
+
+  - block:
+
+      - set_fact:
+          _cur_os_py_overwrite_res: >-
+            {{ ansible_facts.python.executable }}
+
+    when: >-
+      _cur_os_py_overwrite is falsy
+
+
+  - set_fact:
+      _os_py_extra_vars: >-
+        {{ _os_py_extra_vars
+         | combine({'ansible_python_interpreter': _cur_os_py_overwrite_res})
+        }}
+
+
+  - set_fact:
+      package_handling_python_overwrite: >-
+        {{ _os_py_extra_vars.ansible_python_interpreter }}
+
+
+## do steps prepackage
+  - name: handle custom pre package install steps
+    include_tasks: "{{ _cur_dockimg.steps.pre_packages }}"
+    when: _cur_dockimg.get('steps', {}).get('pre_packages', None) is truthy
+
+
+  - name: optionally handle custom extra package sources (apt)
+    include_role:
+      name: smabot.base.custom_apt_sources
+    vars:
+      smabot_base_custom_apt_sources_args: >-
+        {{ _cur_dockimg.packages.distro.sources }}
+      ansible_python_interpreter: >-
+        {{ _os_py_extra_vars.ansible_python_interpreter }}
+    when: >-
+      ansible_os_family == "Debian" and
+      (_cur_dockimg.packages.distro.sources | default(False)) is truthy
+
+
+## do standard package install
+  - name: standard distro package installs
+    include_tasks: packages/distro/main.yml
+
+
+# handle user accounts (and also groups, might depend on newly installed packages)
+  - include_role:
+      name: smabot.base.manage_os_users_and_groups
+    vars:
+      smabot_base_manage_os_users_and_groups_args: >-
+        {{ _cur_dockimg.users._user_upstream_cfg }}
+    when: >-
+      _cur_dockimg.users._user_upstream_cfg | default(false)
+
+
+## handle docker copy (might depend on newly created users)
+  - include_role:
+      name: smabot.containers.copy_to_image
+    vars:
+      copy_to_image_args:
+        copy_cfg: "{{ _cur_dockimg.docker_copy }}"
+        image_config: "{{ _cur_dockimg }}"
+
+
+## TODO: make this its own role
+  - name: ensure py pip is up to date  ==>>  {{ _cur_dockimg.fullname }}
+    ansible.builtin.pip:
+      name: pip
+      state: latest
+    failed_when: false
+    register: _tmp_modres_pip_update
+
+
+  - set_fact:
+      _tmp_pip_err_lines: >-
+        {{ _tmp_modres_pip_update.stderr_lines }}
+    when: _tmp_modres_pip_update.stderr_lines is defined
+
+  - set_fact:
+      _tmp_pip_err_lines: >-
+        {{ [_tmp_modres_pip_update.msg] }}
+    when: _tmp_modres_pip_update.stderr_lines is not defined
+
+
+  - name: filter out pip warnings
+    set_fact:
+      _tmp_pip_err_handled: false
+      _tmp_pip_err_lines: >-
+         {{ _tmp_pip_err_lines | reject("regex", "(?i)^\s*warn") }}
+
+
+    ##
+    ## pip update error handling
+    ##
+  - block:
+
+        ##
+        ## special error case: pip is managed by os-packages, not
+        ## natively, so use them
+        ##
+      - block:
+
+            ##
+            ## TODO: generalize for more distros and maybe py2 (??)
+            ##
+          - block:
+
+              - name: ensure py pip is up to date (os package)
+                ansible.builtin.package:
+                  name: python3-pip
+                  state: latest
+
+              - set_fact:
+                  _tmp_pip_err_handled: true
+
+            when: ansible_os_family == "Debian"
+
+
+          - block:
+
+              - name: ensure py pip is up to date (os package)
+                ansible.builtin.package:
+                  name: py3-pip
+                  state: latest
+
+              - set_fact:
+                  _tmp_pip_err_handled: true
+
+            when: ansible_os_family == "Alpine"
+
+        when: >-
+          (_tmp_pip_err_lines | length) == 1 and
+          (_tmp_pip_err_lines | first) is
+          regex("(?i)externally-managed-environment")
+
+
+      - name: ensure that error was handled succesfully
+        ansible.builtin.assert:
+          that:
+            - _tmp_pip_err_handled is truthy
+          fail_msg: |-
+            updating pip failed with unhandled error(s):
+            {{ _tmp_pip_err_lines | join('\n') }}
+
+    when: _tmp_pip_err_lines is truthy
+
+
+#
+# do java proxy handling
+#
+# note: we do this after standard package install step, as it is 
+#   absolutely possible, that java is not pre inherited from 
+#   parent, but is installed during this building operation, so 
+#   we prefer it atm to be handled after package install
+#
+#   -> the big caveat of this is obviously if java is already 
+#     installed before hand somehow and proxying for it is 
+#     necessary, we cannot use it before we come to this 
+#     point (e.g. for custom pre install steps)
+#
+
+    # recollect extended facts, might have changed
+    # siginificantly in the meantime (e.g. installed java package)
+  - include_role:
+      name: smabot.base.extended_facts
+
+
+  - block:
+
+      - name: add java proxy envvars when appropriate
+        set_fact:
+          _java_proxy_env: >-
+             {{ _cur_dockimg.proxy.eco_systems.java.envvars
+              | default({}) }}
+          _cur_image_env: >-
+             {{ _cur_image_env | smabot.containers.append_contenv(
+                  new_vars=(_cur_dockimg.proxy.eco_systems.java_buildtime.envvars
+                    | default({})
+                  ), strategy='combine'
+                )
+             }}
+
+        ##
+        ## do this either when config explicitly requested it, or 
+        ## when auto dection is on and a java installation was 
+        ## found in container system (which is expected to produce 
+        ## some extended facts related to java)
+        ##
+        when: >-
+          not _cur_dockimg.proxy.eco_systems.java.auto_detect
+          or (_cur_dockimg.proxy.eco_systems.java.auto_detect
+              and ansible_facts.java is defined)
+
+
+      - smabot.base.warn:
+          msg: >-
+            Configuration explicitly requested java proxy handling 
+            but no java installation on container system could be found.
+
+        when: >-
+          not _cur_dockimg.proxy.eco_systems.java.auto_detect
+          and ansible_facts.java is undefined
+
+    when: _cur_dockimg.proxy.eco_systems.java.activate is truthy
+
+
+## handle certificates
+
+  - block:
+
+      - name: handle extra ssl certificates
+        include_role:
+          name: smabot.base.handle_system_certs
+        vars:
+          handle_system_certs_args: >-
+            {{ _cur_dockimg.ssl_certs | default({}, True) }}
+          ansible_python_interpreter: >-
+            {{ _os_py_extra_vars.ansible_python_interpreter }}
+
+        ##
+        ## note: some ssl systems needs specific env vars set,
+        ##   and it is totally possible we want to use them
+        ##   for the rest of docker building
+        ##
+      - name: add certificate related envvars
+        set_fact:
+          _cur_image_env: >-
+             {{ _cur_image_env | smabot.containers.append_contenv(
+                  new_vars=(handle_system_certs_result.envvars
+                    | default({})
+                  )
+                )
+             }}
+        when: handle_system_certs_result.envvars is truthy
+
+    when: _cur_dockimg.get('ssl-certs', {}).get('disable', False) is falsy
+
+
+## handle special package managers
+
+  - name: pip package installs  ==>>  {{ _cur_dockimg.fullname }}
+    ansible.builtin.pip: "{{ _iter_packinst }}" 
+    loop: >-
+      {{ _cur_dockimg.packages.pip 
+       | smabot.containers.to_psets(auto_version=_autovcfg_iter) }}
+    loop_control:
+      loop_var: _iter_packinst
+
+
+  - name: handle optional pip requirements files  ==>>  {{ _cur_dockimg.fullname }}
+    include_tasks: packages/pip/requirements.yml
+    when: _cur_dockimg.packages.pip.requirements.sources
+
+
+  - name: npm package installs  ==>>  {{ _cur_dockimg.fullname }}
+    community.general.npm: "{{ _iter_packinst }}"
+    loop: >-
+      {{ _cur_dockimg.packages.npm
+       | smabot.containers.to_psets(
+          auto_version=_autovcfg_iter, grouped=False
+       ) }}
+    loop_control:
+      loop_var: _iter_packinst
+
+
+  - name: handle optional maven package / artifacts installs  ==>>  {{ _cur_dockimg.fullname }}
+    include_tasks: packages/maven/main.yml
+    loop: >-
+      {{ _cur_dockimg.packages.maven
+       | smabot.containers.to_psets(
+          auto_version=_autovcfg_iter, grouped=False,
+          pkg_convfn='maven'
+       ) }}
+    loop_control:
+      loop_var: _iter_packinst
+
+
+  - name: handle optional pysrc package installs  ==>>  {{ _cur_dockimg.fullname }}
+    include_tasks: packages/pysrc/main.yml
+    vars:
+      psets_pysrc: >-
+        {{ _cur_dockimg.packages.pysrc
+         | smabot.containers.to_psets(
+              auto_version=_autovcfg_iter, grouped=False,
+         ) }}
+    when: _cur_dockimg.packages.pysrc.packages
+
+
+## handle locales
+
+  - block:
+
+      - name: optionally handle locales
+        include_role:
+          name: smabot.base.handle_locales
+        vars:
+          smabot_base_handle_locales_args: >-
+            {{ _cur_dockimg.locales }}
+
+      - name: add locale envvars
+        set_fact:
+          _cur_image_env: >-
+             {{ _cur_image_env | smabot.containers.append_contenv(
+                  new_vars=(smabot_base_handle_locales_result.envvars
+                    | default(None)
+                  ),
+                )
+             }}
+        when: smabot_base_handle_locales_result.envvars is truthy
+
+    when: _cur_dockimg.locales.enabled
+
+
+## optionally handle "features"
+
+  - name: optionally handle feature 'su-exec'
+    include_tasks: features/su_exec/main.yml
+    when: (_cur_dockimg.features.su_exec | default(False)) is truthy
+
+
+  - name: optionally handle feature 'node-nvm'
+    include_tasks: features/node_nvm/main.yml
+    when: (_cur_dockimg.features.node_nvm | default(False)) is truthy
+
+
+  - name: optionally handle feature 'sudo'
+    include_role:
+      name: smabot.base.setup_sudo
+    vars:
+      smabot_base_setup_sudo_args: >-
+        {{ _cur_dockimg.features.sudo }}
+    when: _cur_dockimg.features.get('sudo', False)
+
+
+  - block:
+
+      - name: optionally handle feature 'sonar-scanner'
+        include_role:
+          name: smabot.base.setup_sonarqube_scanner
+        vars:
+          smabot_base_setup_sonarscan_args: >-
+            {{ _cur_dockimg.features.sonarqube_scanner }}
+
+      - name: add sonar scanner related envvars
+        set_fact:
+          _cur_image_env: >-
+             {{ _cur_image_env | smabot.containers.append_contenv(
+                  new_vars=(smabot_base_setup_sonarscan_result.envvars
+                    | default(None)
+                  ),
+                  syspath=(smabot_base_setup_sonarscan_result.syspath
+                    | default(None)
+                  ),
+                )
+             }}
+        when: smabot_base_setup_sonarscan_result.envvars is truthy
+
+    when: _cur_dockimg.features.get('sonarqube_scanner', False)
+
+
+## do steps postpackage
+  - name: handle custom post package install steps
+    include_tasks: "{{ _cur_dockimg.steps.post_packages }}"
+    when: _cur_dockimg.get('steps', {}).get('post_packages', None) is truthy
+
+
+## do dynamic env
+
+  - name: set container $USER envvar to configured docker_user  ==>>  {{ _cur_dockimg.fullname }}
+    set_fact:
+      _cur_image_env: >-
+         {{ _cur_image_env | smabot.containers.append_contenv(
+              new_vars={'USER': _cur_dockimg.docker_user.real}
+            )
+         }}
+    when: _cur_dockimg.docker_user.real | default(False)
+
+
+  ##
+  ## note: as always atm direct uppdating per ansfact return is broken, 
+  ##   so we use here also a workaround role for now
+  ##
+   ## - name: determine final environment (vars) for image  ==>>  {{ _cur_dockimg.fullname }}
+   ##   smabot.containers.compute_container_env:
+   ##     config_ansvar: '_cur_dockimg'
+
+  - include_role:
+      name: smabot.containers.compute_container_env
+    vars:
+      compute_contenv_args:
+        task_name: determine final environment (vars) for image  ==>>  {{ _cur_dockimg.fullname }}
+        config_ansvar: _cur_dockimg
+        modify_path: "{{ _cur_dockimg.sys_path }}"
+        extra_envs:
+          - "{{ _cur_image_env.vars }}"
+          - "{{ _cur_dockimg.proxy.vars | default({}) }}"
+          - "{{ _java_proxy_env }}"
+          - "{{ _cur_image_deco | smabot.containers.deco_to_env }}"
+        extra_syspath:
+          - "{{ _cur_image_env.syspath }}"   ## | default({}, True) }}"
+        duplicate_keys: 'overwrite'
+
+  - debug:
+      var: _cur_dockimg
+
+## do dynamic labels
+
+  - set_fact:
+      _cur_image_labels: >-
+        {{ _cur_image_labels 
+         | combine((
+              _cur_image_deco | smabot.containers.deco_to_labels
+           ))
+        }}
+
+## do final cleanup
+  - include_tasks: final_cleanup/main.yml
+
+## do final meta data collection
+  - set_fact:
+      _dbuild_meta: >-
+        {{ _dbuild_meta | smabot.containers.combine_buildmeta(
+              metacfg=docker_build.meta, imgcfg=_cur_dockimg,
+              auto_versioning=_autovcfg_iter, ansible_facts=ansible_facts
+           )
+        }}
+    when: docker_build.meta.create
+

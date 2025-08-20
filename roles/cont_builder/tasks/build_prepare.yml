@@ -1,0 +1,79 @@
+---
+
+  - set_fact:
+      _my_cfgref: "{{ hostvars.localhost._contbuild_hosts[ansible_host] }}"
+      _bcon_name: "{{ ansible_host }}"
+      smabot_containers_docker_builder_role_path: "{{ role_path }}"
+
+
+  - set_fact:
+      docker_build: "{{ _my_cfgref.docker_cfg  | smabot.base.deepcopy }}"
+      _cur_dockimg: >-
+        {{ _my_cfgref.docker_cfg.images
+         | smabot.base.get_subdict(keychain=_my_cfgref.cfgkey)
+        }}
+      _autovcfg_iter: "{{ _my_cfgref.autover }}"
+      _os_py_extra_vars: {}
+
+
+  - name: make optional custom vars avaible for contbuild role
+    set_fact:
+      "{{ _iter_cvars.key }}": "{{ _iter_cvars.value }}"
+    loop: >-
+      {{ (_my_cfgref.custom_vars | default({}, True)) | dict2items }}
+    loop_control:
+      loop_var: _iter_cvars
+
+
+    ##
+    ## on default, when not explicitly disabled by caller, allow to
+    ## "break python system packages", this is basically the opposite
+    ## python and also ansible do on default but we deem it safe in
+    ## container building setup and actually more sensible in this
+    ## context than working with venvs
+    ##
+  - set_fact:
+      SMABOT_BASE_PIPEXT_PADEF_FORCE_BREAK_SYSTEM_PACKAGE: true
+    when: >-
+      SMABOT_BASE_PIPEXT_PADEF_FORCE_BREAK_SYSTEM_PACKAGE is not defined
+
+
+  - set_fact:
+      _dbuild_meta: {}
+      _java_proxy_env: {}
+      _cur_image_meta: "{{ _my_cfgref.image_meta | smabot.base.deepcopy }}"
+      _cur_image_deco: "{{ _cur_dockimg.decorations }}"
+
+      _cur_image_labels: >-
+         {{ _cur_dockimg.docker_labels | default({}, True) }}
+
+      _cur_image_env: >-
+         {{ {} | smabot.containers.append_contenv(
+              new_vars=(_cur_dockimg.environment.static
+                | default({}, True)
+              ) 
+            )
+          | smabot.containers.append_contenv(
+              new_vars=(_cur_dockimg.proxy.eco_systems.build_time.vars
+                | default({}))
+            )
+         }}
+
+
+  - name: decorate image with auto-version data
+    set_fact:
+      _cur_image_deco: >-
+        {{ _cur_image_deco
+         | smabot.containers.add_deco(
+             key='contimg_verin', value=_autovcfg_iter.version_in,
+             add_env=['CONTIMG_VERSION_IN'],
+             add_label=['org.opencontainers.image.version']
+           )
+         | smabot.containers.add_deco(
+             key='contimg_idtag', value=_autovcfg_iter.idtag,
+             add_env=['CONTIMG_IDTAG'],
+             add_label=['contimage.self.idtag']
+           )
+        }}
+    when: _autovcfg_iter.get('version_in', False)
+
