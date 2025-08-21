@@ -13,12 +13,16 @@
     debug:
       var: hostvars.localhost
 
+  - name: da hvars 2.5
+    debug:
+      msg: "{{ hostvars['localhost'] }}"
+
   - name: da hvars 3
     debug:
       var: hostvars._contbuild_hosts
 
   - set_fact:
-      _my_cfgref: "{{ hostvars.localhost._contbuild_hosts[ansible_host] }}"
+      _my_cfgref: "{{ hostvars['localhost']._contbuild_hosts[ansible_host] }}"
       _bcon_name: "{{ ansible_host }}"
       smabot_containers_docker_builder_role_path: "{{ role_path }}"
 
