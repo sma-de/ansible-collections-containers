@@ -54,8 +54,7 @@
           name: "{{ _bcon_name }}"
           state: absent
         when: not (docker_build_keep_buildcon | default(False))
-
-    delegate_to: localhost
+        delegate_to: localhost
 
 
 ##   - include_role: 

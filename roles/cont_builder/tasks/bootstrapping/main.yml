@@ -37,6 +37,7 @@
           dest: "{{ _items_interpreter_symlinks.dest }}"
           force: true
           state: link
+          follow: false
         loop:
           - dest: /usr/bin/python
           - dest: /usr/bin/python3

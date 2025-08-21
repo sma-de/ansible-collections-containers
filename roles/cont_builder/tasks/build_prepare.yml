@@ -1,12 +1,6 @@
 ---
 
   - set_fact:
-      _my_cfgref: "{{ hostvars.localhost._contbuild_hosts[ansible_host] }}"
-      _bcon_name: "{{ ansible_host }}"
-      smabot_containers_docker_builder_role_path: "{{ role_path }}"
-
-
-  - set_fact:
       docker_build: "{{ _my_cfgref.docker_cfg  | smabot.base.deepcopy }}"
       _cur_dockimg: >-
         {{ _my_cfgref.docker_cfg.images
