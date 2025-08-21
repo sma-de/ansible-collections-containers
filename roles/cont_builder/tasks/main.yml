@@ -5,6 +5,10 @@
 ## default context is execed into container to build
 ##
 
+  - name: da hvars
+    debug:
+      var: hostvars
+
   - set_fact:
       _my_cfgref: "{{ hostvars.localhost._contbuild_hosts[ansible_host] }}"
       _bcon_name: "{{ ansible_host }}"
