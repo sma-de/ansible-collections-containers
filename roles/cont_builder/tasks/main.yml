@@ -9,6 +9,14 @@
     debug:
       var: hostvars
 
+  - name: da hvars 2
+    debug:
+      var: hostvars.localhost
+
+  - name: da hvars 3
+    debug:
+      var: hostvars._contbuild_hosts
+
   - set_fact:
       _my_cfgref: "{{ hostvars.localhost._contbuild_hosts[ansible_host] }}"
       _bcon_name: "{{ ansible_host }}"
