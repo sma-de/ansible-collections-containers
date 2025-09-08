@@ -38,6 +38,9 @@
           force: true
           state: link
           follow: false
+        when: >-
+          (_tmp_py_preinst_path.stdout_lines | first)
+          != _items_interpreter_symlinks.dest
         loop:
           - dest: /usr/bin/python
           - dest: /usr/bin/python3
