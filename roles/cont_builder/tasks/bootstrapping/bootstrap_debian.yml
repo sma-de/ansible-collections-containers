@@ -12,7 +12,9 @@
           _tmp_bootstrapper: debian
           _tmp_bootstrap_env: >-
             {{ _tmp_bootstrap_env
-               | ansible.builtin.combine('DEBIAN_FRONTEND': 'noninteractive')
+               | ansible.builtin.combine({
+                   'DEBIAN_FRONTEND': 'noninteractive'
+                 })
             }}
 
 
