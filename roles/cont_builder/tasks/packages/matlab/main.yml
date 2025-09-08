@@ -1,0 +1,57 @@
+---
+
+  ## TODO: in auto install active case, check if mpm binary is already installed, if not auto-installed
+
+## && EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
+##     && sudo HOME=${HOME} ./mpm install \
+##         --destination=${EXISTING_MATLAB_LOCATION} \
+##         --release=${MATLAB_RELEASE} \
+##         --products ${ADDITIONAL_PRODUCTS} \
+##     || (echo "MPM Installation Failure. See below for more information:" && cat /tmp/mathworks_root.log && false) \
+##     && sudo rm -rf mpm /tmp/mathworks_root.log
+
+
+  - name: run matlab package installer
+    ansible.builtin.shell:
+      cmd: |
+        id -a
+
+        mpm_dir="$(which mpm  | xargs dirname)"
+        rc="$?"
+
+        if [ "$rc" -ne 0 ] || [ -z "${mpm_dir}" ]; then
+          if [ "$rc" -eq 0 ]; then
+            rc=1
+          fi
+
+          msg="Failed to obtain path to mpm binary. Ensure this"
+          msg=" is installed in \$PATH and executable by current user."
+
+          echo "$msg" >&2
+          exit "$rc"
+        fi
+
+        ## TODO: overridable
+        mlab_loc=$(dirname $(dirname $(readlink -f $(which matlab))))
+        ## TODO: overridable
+        mlab_rel=TODO
+
+        sudo "HOME=${HOME}" mpm install \\
+          --destination="${mlab_loc:?}" \\
+          --release="${mlab_rel:?}" \\
+          --products "{{ TODO }}"
+
+        rc="$?"
+
+        if [ "$rc" -ne 0 ]; then
+          echo "Installing matlab packages failed, install log:" >&2
+          sudo cat "${mpm_dir}/mathworks_root.log" >&2
+
+          exit "$rc"
+        fi
+
+        sudo rm -rf "${mpm_dir}/mathworks_root.log"
+
+
+  ## TODO: if mpm was auto-installed and not keeping it was explicitly requested, remove it again
+
