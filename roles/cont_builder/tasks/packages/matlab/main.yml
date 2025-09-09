@@ -27,8 +27,6 @@
           {{ _tmp_valid_cfg.states }}
 
 
-  ## TODO: in auto install active case, check if mpm binary is already installed, if not auto-installed
-
 ## && EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
 ##     && sudo HOME=${HOME} ./mpm install \
 ##         --destination=${EXISTING_MATLAB_LOCATION} \
@@ -72,16 +70,9 @@
 
   - name: auto-install mpm package manager
     ansible.builtin.get_url: "{{ _iter_packinst.mpm.auto_install.config }}"
-##      url: http://example.com/path/file.conf
-##      dest: /etc/foo.conf
-##      mode: '0440'
     when: >-
        (_iter_packinst.mpm.auto_install | default(False)) is truthy
        and _tmp_modres_which_mpm.abspath is falsy
-
-##      url: https://www.mathworks.com/mpm/glnxa64/mpm
-##      dest: /usr/local/bin/mpm
-##      mode: '0775'
 
 
     ## note: we need to know the home dir here of the final image matlab user
@@ -111,10 +102,8 @@
   - name: run matlab package installer
     ansible.builtin.shell:
       cmd: |
-        set +e
+        ##set +e
 
-        ## TODO: overridable
-        ##mlab_loc=$(dirname $(dirname $(readlink -f $(which matlab))))
         export HOME='{{ _tmp_modres_usrhome.stdout_lines | first }}'
 
         mpm install --destination='{{ _tmp_modinst_cfg.mlab_loc }}' \
@@ -133,5 +122,14 @@
         rm -rf "${mpm_dir}/mathworks_root.log"
 
 
-  ## TODO: if mpm was auto-installed and not keeping it was explicitly requested, remove it again
+  - name: >-
+      remove auto-installed matlab package manager
+      again when keeping was disabled
+    ansible.builtin.file:
+      path: "{{ _iter_packinst.mpm.auto_install.config.dest }}"
+      state: absent
+    when: >-
+       (_iter_packinst.mpm.auto_install | default(False)) is truthy
+       and _tmp_modres_which_mpm.abspath is falsy
+       and _iter_packinst.mpm.auto_install.keep is falsy
 

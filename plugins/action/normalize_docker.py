@@ -1943,6 +1943,10 @@ class DockConfNormImagePackDefaultsMatlab(DockConfNormImagePackDefaults):
     def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
         mpm_cfg = my_subcfg['mpm']
         mpm_cfg_autoinst = setdefault_none(mpm_cfg, 'auto_install', {})
+
+        ##setdefault_none(mpm_cfg_autoinst, 'keep', True)
+        setdefault_none(mpm_cfg_autoinst, 'keep', False)
+
         mpm_cfg_autoinst_cfg = setdefault_none(
             mpm_cfg_autoinst, 'config', {}
         )
