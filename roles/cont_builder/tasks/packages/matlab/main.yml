@@ -39,7 +39,7 @@
         sudo "HOME=${HOME}" mpm install \\
           --destination="${mlab_loc:?}" \\
           --release="${mlab_rel:?}" \\
-          --products "{{ TODO }}"
+          --products "{{ _iter_packinst.name | join(' ') }}"
 
         rc="$?"
 
