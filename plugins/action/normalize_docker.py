@@ -1944,8 +1944,7 @@ class DockConfNormImagePackDefaultsMatlab(DockConfNormImagePackDefaults):
         mpm_cfg = my_subcfg['mpm']
         mpm_cfg_autoinst = setdefault_none(mpm_cfg, 'auto_install', {})
 
-        ##setdefault_none(mpm_cfg_autoinst, 'keep', True)
-        setdefault_none(mpm_cfg_autoinst, 'keep', False)
+        setdefault_none(mpm_cfg_autoinst, 'keep', True)
 
         mpm_cfg_autoinst_cfg = setdefault_none(
             mpm_cfg_autoinst, 'config', {}
