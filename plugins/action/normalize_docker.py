@@ -1135,6 +1135,7 @@ class DockConfNormImagePackages(NormalizerBase):
           DockConfNormImageNpmPackages(pluginref),
           DockConfNormImageMavenPackages(pluginref),
           DockConfNormImagePySrcPackages(pluginref),
+          DockConfNormImageMatlabPackages(pluginref),
         ]
 
         super(DockConfNormImagePackages, self).__init__(pluginref, *args, **kwargs)
@@ -1925,6 +1926,15 @@ class DockConfNormImageNpmPackages(DockConfNormImageXPackBase):
         })
 
         return my_subcfg
+
+
+
+class DockConfNormImageMatlabPackages(DockConfNormImageXPackBase):
+
+    @property
+    def config_path(self):
+        return ['matlab_packages']
+
 
 
 class DockConfNormImageSCMBased(NormalizerBase):

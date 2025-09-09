@@ -357,7 +357,7 @@
        ) }}
     loop_control:
       loop_var: _iter_packinst
-    when: _cur_dockimg.packages.matlab_packages
+    when: _cur_dockimg.packages.matlab_packages.packages
 
 
 ## handle locales
