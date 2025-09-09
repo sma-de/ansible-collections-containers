@@ -109,26 +109,9 @@
     ansible.builtin.shell:
       cmd: |
         set +e
-        id -a
-
-        mpm_dir="$(which mpm  | xargs dirname)"
-        rc="$?"
-
-        if [ "$rc" -ne 0 ] || [ -z "${mpm_dir}" ]; then
-          if [ "$rc" -eq 0 ]; then
-            rc=1
-          fi
-
-          msg="Failed to obtain path to mpm binary. Ensure this"
-          msg=" is installed in \$PATH and executable by current user."
-
-          echo "$msg" >&2
-          exit "$rc"
-        fi
 
         ## TODO: overridable
         ##mlab_loc=$(dirname $(dirname $(readlink -f $(which matlab))))
-
         export HOME='{{ _tmp_modres_usrhome.stdout_lines | first }}'
 
         mpm install --destination='{{ _tmp_modinst_cfg.mlab_loc }}' \\

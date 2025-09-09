@@ -1929,12 +1929,41 @@ class DockConfNormImageNpmPackages(DockConfNormImageXPackBase):
 
 
 
+class DockConfNormImagePackDefaultsMatlab(DockConfNormImagePackDefaults):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'mpm', DefaultSetterConstant({})
+        )
+
+        super(DockConfNormImagePackDefaultsMaven, self).__init__(
+          pluginref, *args, default_state='present', **kwargs
+        )
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        mpm_cfg = my_subcfg['mpm']
+        mpm_cfg_autoinst = setdefault_none(mpm_cfg, 'auto_install', {})
+        mpm_cfg_autoinst_cfg = setdefault_none(
+            mpm_cfg_autoinst, 'config', {}
+        )
+
+        setdefault_none(mpm_cfg_autoinst_cfg, 'url',
+            'https://www.mathworks.com/mpm/glnxa64/mpm'
+        )
+
+        setdefault_none(mpm_cfg_autoinst_cfg, 'dest', '/usr/local/bin/mpm')
+        setdefault_none(mpm_cfg_autoinst_cfg, 'mode', '0775')
+
+        return my_subcfg
+
+
+
 class DockConfNormImageMatlabPackages(DockConfNormImageXPackBase):
 
     def __init__(self, pluginref, *args, **kwargs):
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
-          DockConfNormImagePackDefaults(pluginref),
+          DockConfNormImagePackDefaultsMatlab(pluginref),
         ]
 
         super(DockConfNormImageMatlabPackages, self).__init__(
