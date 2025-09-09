@@ -114,12 +114,12 @@
 
         if [ "$rc" -ne 0 ]; then
           echo "Installing matlab packages failed, install log:" >&2
-          sudo cat "mathworks_root.log" >&2
+          sudo cat /tmp/mathworks_*.log >&2
 
           exit "$rc"
         fi
 
-        rm -rf "mathworks_root.log"
+        rm -rf /tmp/mathworks_*.log
 
 
   - name: >-
