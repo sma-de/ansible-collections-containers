@@ -11,8 +11,8 @@
   - set_fact:
       _tmp_valid_cfg:
         states:
-##          - latest
-##          - present
+          - latest
+          - present
           - foo
 
 
