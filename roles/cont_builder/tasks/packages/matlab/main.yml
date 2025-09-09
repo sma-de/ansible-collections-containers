@@ -102,8 +102,6 @@
   - name: run matlab package installer
     ansible.builtin.shell:
       cmd: |
-        ##set +e
-
         export HOME='{{ _tmp_modres_usrhome.stdout_lines | first }}'
 
         mpm install --destination='{{ _tmp_modinst_cfg.mlab_loc }}' \
