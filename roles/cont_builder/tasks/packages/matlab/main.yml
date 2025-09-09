@@ -105,7 +105,6 @@
         ##set +e
 
         export HOME='{{ _tmp_modres_usrhome.stdout_lines | first }}'
-        mpm_dir="$(which mpm | xargs dirname)"
 
         mpm install --destination='{{ _tmp_modinst_cfg.mlab_loc }}' \
           --release='{{ _tmp_modinst_cfg.mlab_ver }}' \
@@ -115,12 +114,12 @@
 
         if [ "$rc" -ne 0 ]; then
           echo "Installing matlab packages failed, install log:" >&2
-          sudo cat "${mpm_dir}/mathworks_root.log" >&2
+          sudo cat "mathworks_root.log" >&2
 
           exit "$rc"
         fi
 
-        rm -rf "${mpm_dir}/mathworks_root.log"
+        rm -rf "mathworks_root.log"
 
 
   - name: >-
