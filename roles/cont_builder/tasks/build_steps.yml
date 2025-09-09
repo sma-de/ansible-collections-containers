@@ -351,7 +351,7 @@
   - name: handle optional matlab package installs  ==>>  {{ _cur_dockimg.fullname }}
     include_tasks: packages/matlab/main.yml
     loop: >-
-      {{ _cur_dockimg.packages.matlab_packages
+      {{ _cur_dockimg.packages.matlab_packages | default({}, True)
        | smabot.containers.to_psets(
           auto_version=_autovcfg_iter,
        ) }}
