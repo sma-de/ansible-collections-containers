@@ -1931,6 +1931,16 @@ class DockConfNormImageNpmPackages(DockConfNormImageXPackBase):
 
 class DockConfNormImageMatlabPackages(DockConfNormImageXPackBase):
 
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockConfNormImagePackDefaults(pluginref),
+        ]
+
+        super(DockConfNormImageMatlabPackages, self).__init__(
+            pluginref, *args, **kwargs
+        )
+
     @property
     def config_path(self):
         return ['matlab_packages']
