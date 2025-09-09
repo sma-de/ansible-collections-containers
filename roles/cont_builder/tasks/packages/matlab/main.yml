@@ -37,6 +37,17 @@
 ##     || (echo "MPM Installation Failure. See below for more information:" && cat /tmp/mathworks_root.log && false) \
 ##     && sudo rm -rf mpm /tmp/mathworks_root.log
 
+
+  - name: get path to matlab binary
+    smabot.base.command_which:
+      cmd: mpm
+    register: _tmp_modres_which_mlab
+
+  - name: get path to mpm binary
+    smabot.base.command_which:
+      cmd: mpm
+    register: _tmp_modres_which_mpm
+
     ## note: we need to know the home dir here of the final image matlab user
   - name: get home dir of matlab image user
     ansible.builtin.shell: >-
@@ -68,7 +79,7 @@
         ## TODO: overridable
         mlab_loc=$(dirname $(dirname $(readlink -f $(which matlab))))
         ## TODO: overridable
-        mlab_rel=TODO
+        mlab_rel=r2025a
 
         export HOME='{{ _tmp_modres_usrhome.stdout_lines | first }}'
 
