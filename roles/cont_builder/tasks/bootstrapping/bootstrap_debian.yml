@@ -80,7 +80,7 @@
             ansible.builtin.raw: >-
               {{ _tmp_bootstrap_env | smabot.base.kvlist | join(' ') }}
               python3 -m pip install --root-user-action ignore packaging
-              || { apt-get update && apt-get install python3-packaging };
+              || { apt-get update && apt-get install python3-packaging; }
 
         when: _tmp_py_installed.rc == 0
 
