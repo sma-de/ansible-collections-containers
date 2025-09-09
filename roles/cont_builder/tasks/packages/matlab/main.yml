@@ -1,5 +1,32 @@
 ---
 
+##
+## this method is based on this:
+##   -> https://github.com/mathworks-ref-arch/matlab-dockerfile/tree/main/alternates/building-on-matlab-docker-image
+##
+
+## TODO: support absent state???
+## TODO: support giving explicit version state???
+
+  - set_fact:
+      _tmp_valid_cfg:
+        states:
+##          - latest
+##          - present
+          - foo
+
+
+  - name: check if given package config is valid
+    ansible.builtin.assert:
+      that:
+        - >-
+          not _iter_packinst.get('state', None) or
+          _iter_packinst.state in _tmp_valid_cfg.states
+      fail_msg: |-
+        Currently only the following package states are supported:
+          {{ _tmp_valid_cfg.states }}
+
+
   ## TODO: in auto install active case, check if mpm binary is already installed, if not auto-installed
 
 ## && EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
@@ -10,10 +37,17 @@
 ##     || (echo "MPM Installation Failure. See below for more information:" && cat /tmp/mathworks_root.log && false) \
 ##     && sudo rm -rf mpm /tmp/mathworks_root.log
 
+    ## note: we need to know the home dir here of the final image matlab user
+  - name: get home dir of matlab image user
+    ansible.builtin.shell: >-
+      getent passwd '{{ _cur_dockimg.docker_user.real }}' | cut -d: -f6
+    register: _tmp_modres_usrhome
+
 
   - name: run matlab package installer
     ansible.builtin.shell:
       cmd: |
+        set +e
         id -a
 
         mpm_dir="$(which mpm  | xargs dirname)"
@@ -36,8 +70,9 @@
         ## TODO: overridable
         mlab_rel=TODO
 
-        sudo "HOME=${HOME}" mpm install \\
-          --destination="${mlab_loc:?}" \\
+        export HOME='{{ _tmp_modres_usrhome.stdout_lines | first }}'
+
+        mpm install --destination="${mlab_loc:?}" \\
           --release="${mlab_rel:?}" \\
           --products "{{ _iter_packinst.name | join(' ') }}"
 
@@ -50,7 +85,7 @@
           exit "$rc"
         fi
 
-        sudo rm -rf "${mpm_dir}/mathworks_root.log"
+        rm -rf "${mpm_dir}/mathworks_root.log"
 
 
   ## TODO: if mpm was auto-installed and not keeping it was explicitly requested, remove it again
