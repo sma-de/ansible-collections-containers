@@ -40,7 +40,7 @@
 
   - name: get path to matlab binary
     smabot.base.command_which:
-      cmd: matlab_foo
+      cmd: matlab
     register: _tmp_modres_which_mlab
 
 
@@ -57,6 +57,18 @@
     smabot.base.command_which:
       cmd: mpm
     register: _tmp_modres_which_mpm
+
+
+  - name: ensure mpm binary is accessable
+    ansible.builtin.assert:
+      that:
+        - _tmp_modres_which_mpm.abspath is truthy
+      fail_msg: >-
+        matlab package manager mpm is either not installed or at
+        least not accessable as executable on $PATH
+     when: >-
+       _iter_packinst.mpm.auto_install is falsy
+
 
     ## note: we need to know the home dir here of the final image matlab user
   - name: get home dir of matlab image user
