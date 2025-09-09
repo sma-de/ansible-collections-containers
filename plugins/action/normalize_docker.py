@@ -1093,7 +1093,7 @@ class DockConfNormImgInstallBootstrapPython(NormalizerBase):
 
         if tmp is None:
             ## default "force_fix_symlinks"
-            pcfg = self.get_parentcfg(cfg, cfgpath_abs, level=3)
+            pcfg = self.get_parentcfg(cfg, cfgpath_abs, level=2)
 
             ##
             ## this is not really safe for all audiences unfortunately
