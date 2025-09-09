@@ -1936,7 +1936,7 @@ class DockConfNormImagePackDefaultsMatlab(DockConfNormImagePackDefaults):
           'mpm', DefaultSetterConstant({})
         )
 
-        super(DockConfNormImagePackDefaultsMaven, self).__init__(
+        super(DockConfNormImagePackDefaultsMatlab, self).__init__(
           pluginref, *args, default_state='present', **kwargs
         )
 
