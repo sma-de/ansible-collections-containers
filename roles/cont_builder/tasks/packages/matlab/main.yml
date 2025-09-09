@@ -40,8 +40,18 @@
 
   - name: get path to matlab binary
     smabot.base.command_which:
-      cmd: mpm
+      cmd: matlab_foo
     register: _tmp_modres_which_mlab
+
+
+  - name: ensure matlab binary is accessable
+    ansible.builtin.assert:
+      that:
+        - _tmp_modres_which_mlab.abspath is truthy
+      fail_msg: >-
+        matlab binary is either not installed or at least not
+        accessable as executable on $PATH
+
 
   - name: get path to mpm binary
     smabot.base.command_which:
@@ -53,6 +63,20 @@
     ansible.builtin.shell: >-
       getent passwd '{{ _cur_dockimg.docker_user.real }}' | cut -d: -f6
     register: _tmp_modres_usrhome
+
+
+  - set_fact:
+      _tmp_modinst_cfg:
+        mlab_loc: >-
+          {{ _iter_packinst.matlab_location
+           | default(_tmp_modres_which_mlab.abspath | dirname | dirname, True)
+          }}
+
+        ## TODO: default should be from autover
+        mlab_ver: r2025a
+
+        products: >-
+          {{ _iter_packinst.name | join(' ') }}
 
 
   - name: run matlab package installer
@@ -77,15 +101,13 @@
         fi
 
         ## TODO: overridable
-        mlab_loc=$(dirname $(dirname $(readlink -f $(which matlab))))
-        ## TODO: overridable
-        mlab_rel=r2025a
+        ##mlab_loc=$(dirname $(dirname $(readlink -f $(which matlab))))
 
         export HOME='{{ _tmp_modres_usrhome.stdout_lines | first }}'
 
-        mpm install --destination="${mlab_loc:?}" \\
-          --release="${mlab_rel:?}" \\
-          --products "{{ _iter_packinst.name | join(' ') }}"
+        mpm install --destination='{{ _tmp_modinst_cfg.mlab_loc }}' \\
+          --release='{{ _tmp_modinst_cfg.mlab_ver }}' \\
+          --products '{{ _tmp_modinst_cfg.products }}'
 
         rc="$?"
 
