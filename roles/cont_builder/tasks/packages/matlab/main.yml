@@ -106,7 +106,7 @@
 
         mpm install --destination='{{ _tmp_modinst_cfg.mlab_loc }}' \
           --release='{{ _tmp_modinst_cfg.mlab_ver }}' \
-          --products '{{ _tmp_modinst_cfg.products }}'
+          --products {{ _tmp_modinst_cfg.products }}
 
         rc="$?"
 
