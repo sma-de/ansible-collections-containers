@@ -67,7 +67,7 @@
         matlab package manager mpm is either not installed or at
         least not accessable as executable on $PATH
     when: >-
-      _iter_packinst.mpm.auto_install is falsy
+      (_iter_packinst.mpm.auto_install | default(False)) is falsy
 
 
   - name: auto-install mpm package manager
@@ -76,8 +76,8 @@
 ##      dest: /etc/foo.conf
 ##      mode: '0440'
     when: >-
-       _iter_packinst.mpm.auto_install is truthy and
-       _tmp_modres_which_mpm.abspath is falsy
+       (_iter_packinst.mpm.auto_install | default(False)) is truthy
+       and _tmp_modres_which_mpm.abspath is falsy
 
 ##      url: https://www.mathworks.com/mpm/glnxa64/mpm
 ##      dest: /usr/local/bin/mpm
