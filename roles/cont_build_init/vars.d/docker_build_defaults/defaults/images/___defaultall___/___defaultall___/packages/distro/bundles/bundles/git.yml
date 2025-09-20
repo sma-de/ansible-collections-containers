@@ -3,5 +3,6 @@
   git:
     packages:
       git:
+      git-lfs:
       openssh-client:
 
