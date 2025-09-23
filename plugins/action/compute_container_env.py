@@ -37,33 +37,70 @@ class DockInstEnvHandler(NormalizerBase):
         if not modpath:
             return ## noop
 
-        new_path = []
-        presents = []
-        absents  = []
+        presents = {
+          'front': [],
+          'end': [],
+          'all': {},
+        }
+
+        absents = {}
 
         keep_presets = False
 
         for mp in modpath:
-            for p in mp.get('present', []):
-                if p not in presents:
-                    presents.append(p)
+            for p in (mp.get('present', None) or []):
+                if p in presents['all']:
+                    ## dont add something twice
+                    continue
 
-            for a in mp.get('absent', []):
-                if a not in absents:
-                    absents.append(a)
+                if p in absent:
+                    ## dont add paths which are explicitly absented
+                    continue
+
+                presents['end'].append(p)
+                presents['all'][p] = 'end'
+
+            for p in (mp.get('present_front', None) or []):
+                if p in presents['front']:
+                    ## dont add something twice
+                    continue
+
+                if p in absent:
+                    ## dont add paths which are explicitly absented
+                    continue
+
+                # check if current fronter was previously added as
+                # ender, if so remove it there
+                x = presents['all'].pop(p, False)
+                if x:
+                    presets[x].remove(p)
+
+                presents['front'].append(p)
+                presents['all'][p] = 'front'
+
+            for a in (mp.get('absent', None) or []):
+                absents[a] = True
+
+                # check if current absentee was added as presentee
+                # earlier, if so remove it there
+                x = presents['all'].pop(a, False)
+                if x:
+                    presets[x].remove(a)
 
             keep_presets = keep_presets or mp.get('presets', True)
 
-        if not presents and not absents:
+        if not presents['all'] and not absents:
             return  ## noop
+
+        kept_paths = []
 
         if keep_presets:
             known_paths = {}
 
-            for p in presents:
+            for p in presents['all'].keys():
                 known_paths[p] = True
 
-            for p in absents:
+            for p in absents.keys():
                 known_paths[p] = False
 
             for p in resmap['PATH'].split(':'):
@@ -72,18 +109,11 @@ class DockInstEnvHandler(NormalizerBase):
                 if known is None or known:
                     # keep paths not explicitly handled, and also
                     # the ones in present obviously
-                    new_path.append(p)
+                    kept_paths.append(p)
                 ##else: # absentee paths, dont keep them
 
-            ## append all present paths not already set on this at the end
-            ## TODO: support more positioning modes for new paths??
-            for (k, v) in iteritems(known_paths):
-                if v:
-                    new_path.append(k)
-
-        else:
-            new_path = presents
-
+        ## combine all paths together again in the right order
+        new_path = presents['front'] + kept_paths + presets['end']
         resmap['PATH'] = ':'.join(new_path)
 
 
