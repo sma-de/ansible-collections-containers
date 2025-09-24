@@ -52,7 +52,7 @@ class DockInstEnvHandler(NormalizerBase):
                     ## dont add something twice
                     continue
 
-                if p in absent:
+                if p in absents:
                     ## dont add paths which are explicitly absented
                     continue
 
