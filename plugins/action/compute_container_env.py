@@ -112,7 +112,7 @@ class DockInstEnvHandler(NormalizerBase):
                 ##else: # absentee paths, dont keep them
 
         ## combine all paths together again in the right order
-        new_path = presents['front'] + kept_paths + presets['end']
+        new_path = presents['front'] + kept_paths + presents['end']
         resmap['PATH'] = ':'.join(new_path)
 
 
