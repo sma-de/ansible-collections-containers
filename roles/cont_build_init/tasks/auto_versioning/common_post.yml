@@ -9,13 +9,15 @@
 
   - set_fact:
       _tmp_build_tags: []
-      _tmp_idtag: "{{ _autovcfg_iter }}"
+      _tmp_idtag: >-
+        {{ _autovcfg_iter.idtag | default(_autovcfg_iter, True) }}
       _tmp_cur_autover:
-         version_in: "{{ _autovcfg_iter }}"
+         version_in: >-
+            {{ _autovcfg_iter.ver_in | default(_autovcfg_iter, True) }}
 
 
   - set_fact:
-      _tmp_build_tags: "{{ _tmp_build_tags + [_autovcfg_iter] }}"
+      _tmp_build_tags: "{{ _tmp_build_tags + [_tmp_cur_autover.version_in] }}"
     when: _cur_dockimg.auto_versioning.default_tags
 
 
@@ -32,7 +34,7 @@
       _tmp_build_tags: "{{ _tmp_build_tags + [_tmp_idtag] }}"
     when: >-
       _cur_dockimg.auto_versioning.default_tags
-      and _tmp_idtag != _autovcfg_iter
+      and _tmp_idtag != _tmp_cur_autover.version_in
 
 
 ##  - name: decorate image with auto-version data
@@ -54,7 +56,7 @@
 
   - name: >-
       check if computed id tag '{{ _tmp_idtag }}' for current 
-      auto version '{{ _autovcfg_iter }}' exists 
+      auto version '{{ _tmp_cur_autover.version_in }}' exists
       already  ==>>  {{ _dbimg_iter.value.fullname }}
 
     community.docker.docker_image:
