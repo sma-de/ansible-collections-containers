@@ -149,9 +149,12 @@ class AutoVersionPostProc(FilterBase):
                " regex '{}'".format(rgx, rgx_fin)
 
             found_matches = {}
+
             for m in re.finditer(rgx_fin, value, flags=re.MULTILINE):
                 if found_matches:
-                    raise AnsibleOptionsError(errpfx + " more than one match was found")
+                    raise AnsibleOptionsError(
+                        errpfx + " more than one match was found"
+                    )
 
                 for k, v in vers.items():
                     mx = m.group(k)
