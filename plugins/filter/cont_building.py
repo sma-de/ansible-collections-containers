@@ -92,12 +92,12 @@ class AutoVersionPostProc(FilterBase):
             found_match = None
             for m in re.finditer(tmp, value, flags=re.MULTILINE):
                 if found_match:
-                    raise AnsibleOptionsError(errpxf + " more than one match was found")
+                    raise AnsibleOptionsError(errpfx + " more than one match was found")
 
                 found_match = m.group('version')
 
             if not found_match:
-                raise AnsibleOptionsError(errpxf + " no match was found")
+                raise AnsibleOptionsError(errpfx + " no match was found")
 
             value = found_match
             return value
@@ -151,7 +151,7 @@ class AutoVersionPostProc(FilterBase):
             found_matches = {}
             for m in re.finditer(rgx_fin, value, flags=re.MULTILINE):
                 if found_matches:
-                    raise AnsibleOptionsError(errpxf + " more than one match was found")
+                    raise AnsibleOptionsError(errpfx + " more than one match was found")
 
                 for k, v in vers.items():
                     mx = m.group(k)
@@ -170,7 +170,7 @@ class AutoVersionPostProc(FilterBase):
                         )
 
             if not found_matches:
-                raise AnsibleOptionsError(errpxf + " no match was found")
+                raise AnsibleOptionsError(errpfx + " no match was found")
 
             res['idtag'] = found_matches['idtag']
             res['ver_in'] = value
