@@ -37,6 +37,13 @@
       and _tmp_idtag != _tmp_cur_autover.version_in
 
 
+  - name: >-
+      optionally add any auto version defined extra image tags when defined
+    set_fact:
+      _tmp_build_tags: >-
+        {{ _tmp_build_tags + _autovcfg_iter.extra_tags | default([], True) }}
+
+
 ##  - name: decorate image with auto-version data
 ##    set_fact:
 ##      _cur_image_deco: >-
