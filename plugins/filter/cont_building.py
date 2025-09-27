@@ -161,6 +161,11 @@ class AutoVersionPostProc(FilterBase):
 
                     if mx:
                         found_matches[k] = mx
+                        res['meta_info'][k] = mx
+
+                        if not v.get('no_imgtag', False):
+                            res['extra_tags'].append(mx)
+
                         continue
 
                     if not v.get('optional', False):
