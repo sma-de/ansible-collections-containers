@@ -58,7 +58,13 @@ class AutoVersionPostProc(FilterBase):
           'multi_capture': ([collections.abc.Mapping], {}, mucap_spec),
         })
 
-        tmp['mutual_exclusions'] = [['capture_group', 'multi_capture']]
+        tmeta = tmp.get(MAGIC_ARGSPECKEY_META, None) or {}
+        tmp[MAGIC_ARGSPECKEY_META] = tmeta
+
+        tmeta.setdefault('mutual_exclusions', []).append(
+          ['capture_group', 'multi_capture']
+        )
+
         return tmp
 
 
