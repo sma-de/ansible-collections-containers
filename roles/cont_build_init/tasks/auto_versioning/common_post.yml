@@ -14,11 +14,15 @@
       _tmp_cur_autover:
          version_in: >-
             {{ _autovcfg_iter.ver_in | default(_autovcfg_iter, True) }}
+          meta_info: >-
+            {{ _autovcfg_iter.meta_info | default({}, True) }}
 
 
   - set_fact:
       _tmp_build_tags: "{{ _tmp_build_tags + [_tmp_cur_autover.version_in] }}"
-    when: _cur_dockimg.auto_versioning.default_tags
+    when: >-
+      _cur_dockimg.auto_versioning.default_tags and
+      not _tmp_cur_autover.get('no_ver_in_tag', False)
 
 
   - name: optionally append scm timestamp to idtag when avaible
