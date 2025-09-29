@@ -183,6 +183,19 @@ class DockInstEnvHandler(NormalizerBase):
         if shellers:
             handle_shellers(shellers, env_keys, resmap)
 
+        from_av = dynenv.get('from_autover', {})
+
+        if from_av:
+            av = self.pluginref.get_taskparam('auto_version')
+
+            for k, v in from_av.items():
+                av_val = av
+
+                for x in v.split('.'):
+                    av_val = av_val[x]
+
+                add_new_envkey(k, av_val, resmap, env_keys)
+
         constenv.update(resmap)
 
         ## handle some generic special cases
@@ -226,6 +239,7 @@ class ActionModule(ConfigNormalizerBase):
           'modify_path': ([collections.abc.Mapping], {}),
           'extra_syspath': ([[collections.abc.Mapping]], []),
           'duplicate_keys': (list(string_types), 'error', ['overwrite', 'error']),
+          'auto_version': ([collections.abc.Mapping], {}),
         })
 
         return tmp
