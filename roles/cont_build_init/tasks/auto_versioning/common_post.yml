@@ -22,7 +22,7 @@
       _tmp_build_tags: "{{ _tmp_build_tags + [_tmp_cur_autover.version_in] }}"
     when: >-
       _cur_dockimg.auto_versioning.default_tags and
-      not _tmp_cur_autover.get('no_ver_in_tag', False)
+      not _autovcfg_iter.get('no_ver_in_tag', False)
 
 
   - name: optionally append scm timestamp to idtag when avaible
