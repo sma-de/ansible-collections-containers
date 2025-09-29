@@ -14,8 +14,8 @@
       _tmp_cur_autover:
          version_in: >-
             {{ _autovcfg_iter.ver_in | default(_autovcfg_iter, True) }}
-          meta_info: >-
-            {{ _autovcfg_iter.meta_info | default({}, True) }}
+         meta_info: >-
+           {{ _autovcfg_iter.meta_info | default({}, True) }}
 
 
   - set_fact:
