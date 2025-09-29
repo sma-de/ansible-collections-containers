@@ -162,7 +162,7 @@ class AutoVersionPostProc(FilterBase):
                     if mx:
                         found_matches[k] = mx
 
-                        for rk in list(v.get('replacers'. {}).keys()):
+                        for rk in list(v.get('replacers', {}).keys()):
                             rv = v['replacers'][rk]
 
                             if not isinstance(rv, collections.abc.Mapping):
