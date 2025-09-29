@@ -83,7 +83,7 @@
              )
           }}
 
-        mlab_ver: "{{ _autovcfg_iter.release }}"
+        mlab_ver: "{{ _autovcfg_iter.meta_info.release }}"
 
         products: >-
           {{ _iter_packinst.name | join(' ') }}
