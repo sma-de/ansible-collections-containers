@@ -52,6 +52,7 @@ class AutoVersionPostProc(FilterBase):
         mucap_spec = {
           'regex': (list(string_types), ''),
           'versions': ([collections.abc.Mapping], {}),
+          'result_overwrites': ([collections.abc.Mapping], {}),
         }
 
         tmp.update({
@@ -193,7 +194,7 @@ class AutoVersionPostProc(FilterBase):
             if not found_matches:
                 raise AnsibleOptionsError(errpfx + " no match was found")
 
-            res.update(mcap.get('result_overwrites', {}))
+            res.update(mcap['result_overwrites'])
 
             res['idtag'] = found_matches['idtag']
             res['ver_in'] = value
