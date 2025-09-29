@@ -180,6 +180,8 @@ class AutoVersionPostProc(FilterBase):
             if not found_matches:
                 raise AnsibleOptionsError(errpfx + " no match was found")
 
+            res.update(mcap.get('result_overwrites', {}))
+
             res['idtag'] = found_matches['idtag']
             res['ver_in'] = value
             return res
