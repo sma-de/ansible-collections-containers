@@ -178,7 +178,15 @@ class AutoVersionPostProc(FilterBase):
                         res['meta_info'][k] = mx
 
                         if k != 'idtag' and not v.get('no_imgtag', False):
-                            res['extra_tags'].append(mx)
+                            tf = v.get('tag_format', None)
+
+                            if tf:
+                                res['extra_tags'].append(
+                                    tf.format(**res['meta_info'])
+                                )
+
+                            else:
+                                res['extra_tags'].append(mx)
 
                         continue
 
