@@ -6,7 +6,7 @@
 ##
 
 ## TODO: support absent state???
-## TODO: support giving explicit version state???
+## TODO: support giving explicit version state for matlab packages???
 
   - set_fact:
       _tmp_valid_cfg:
@@ -25,15 +25,6 @@
       fail_msg: |-
         Currently only the following package states are supported:
           {{ _tmp_valid_cfg.states }}
-
-
-## && EXISTING_MATLAB_LOCATION=$(dirname $(dirname $(readlink -f $(which matlab)))) \
-##     && sudo HOME=${HOME} ./mpm install \
-##         --destination=${EXISTING_MATLAB_LOCATION} \
-##         --release=${MATLAB_RELEASE} \
-##         --products ${ADDITIONAL_PRODUCTS} \
-##     || (echo "MPM Installation Failure. See below for more information:" && cat /tmp/mathworks_root.log && false) \
-##     && sudo rm -rf mpm /tmp/mathworks_root.log
 
 
   - name: get path to matlab binary
@@ -92,8 +83,7 @@
              )
           }}
 
-        ## TODO: default should be from autover
-        mlab_ver: r2025a
+        mlab_ver: "{{ _autovcfg_iter.release }}"
 
         products: >-
           {{ _iter_packinst.name | join(' ') }}
