@@ -161,6 +161,19 @@ class AutoVersionPostProc(FilterBase):
 
                     if mx:
                         found_matches[k] = mx
+
+                        for rk in list(v.get('replacers'. {}).keys()):
+                            rv = v['replacers'][rk]
+
+                            if not isinstance(rv, collections.abc.Mapping):
+                                ## assume simple string mapping
+                                rv = {
+                                  'pattern': rk, 'replacement': rv,
+                                }
+
+                            v['replacers'][rk] = rv
+                            mx = re.sub(rv['pattern'], rv['replacement'], mx)
+
                         res['meta_info'][k] = mx
 
                         if k != 'idtag' and not v.get('no_imgtag', False):
