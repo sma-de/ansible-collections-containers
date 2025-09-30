@@ -18,6 +18,14 @@
             }}
 
 
+      - name: ensoure used source list(s) use archive links
+        ansible.builtin.raw: >-
+          sed -i 's|\(http.\)://deb.debian.org|\1://archive.debian.org|g'
+          /etc/apt/sources.list && apt-get update
+        when: >-
+          _cur_dockimg.install_bootstrap.debian.apt.force_archive | default(False)
+
+
       - block:
 
           - set_fact:
@@ -46,7 +54,9 @@
               }}
               && rm -rf /var/lib/apt/lists/*
 
-        when: _tmp_py_installed.rc != 0
+        when: >-
+          _tmp_py_installed.rc != 0 and not
+          (_cur_dockimg.install_bootstrap.python.disable_core_deps_install | default(False))
 
 
       - block:
@@ -82,7 +92,9 @@
               python3 -m pip install --root-user-action ignore packaging
               || { apt-get update && apt-get install python3-packaging; }
 
-        when: _tmp_py_installed.rc == 0
+        when: >-
+          _tmp_py_installed.rc == 0 and not
+          (_cur_dockimg.install_bootstrap.python.disable_core_deps_install | default(False))
 
 
     when: _tmp_raw_res.rc == 0
