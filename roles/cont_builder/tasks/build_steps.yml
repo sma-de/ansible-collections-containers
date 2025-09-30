@@ -196,10 +196,14 @@
           regex("(?i)externally-managed-environment")
 
       - debug:
-          var: _cur_dockimg.packages
+          var: _cur_dockimg.packages.pip
 
       - debug:
-          var: _cur_dockimg.packages.pip
+          var: _cur_dockimg.packages.pip.update.ignore_errors
+
+      - debug:
+          msg: >-
+            heee |{{ _cur_dockimg.packages.pip.update.ignore_errors }}|
 
       - name: optionally filter out pip errors by user config
         include_tasks: filter_pip_errors_by_cfg.yml
