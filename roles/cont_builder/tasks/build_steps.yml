@@ -195,6 +195,11 @@
           (_tmp_pip_err_lines | first) is
           regex("(?i)externally-managed-environment")
 
+      - debug:
+          var: _cur_dockimg.packages
+
+      - debug:
+          var: _cur_dockimg.packages.pip
 
       - name: optionally filter out pip errors by user config
         include_tasks: filter_pip_errors_by_cfg.yml
