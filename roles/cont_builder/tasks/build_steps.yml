@@ -199,6 +199,9 @@
           var: _cur_dockimg.packages.pip
 
       - debug:
+          var: _cur_dockimg.packages.pip.update
+
+      - debug:
           var: _cur_dockimg.packages.pip.update.ignore_errors
 
       - debug:
