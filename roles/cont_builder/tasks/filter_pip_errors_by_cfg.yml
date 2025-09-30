@@ -10,13 +10,13 @@
         set_fact:
           _tmp_pip_err_lines: >-
             {{ _tmp_pip_err_lines
-             | reject('match', _iter_cfg_pip_err_ign.regex) | list }}
+             | reject('match', _iter_cfg_pip_err_ign.value.regex) | list }}
 
       - set_fact:
           _tmp_cur_lfilt_handled: true
 
     when: >-
-      _iter_cfg_pip_err_ign.type == 'regex_match'
+      _iter_cfg_pip_err_ign.value.type == 'regex_match'
 
 
   - name: ensure given ignore handler type is supported
@@ -24,7 +24,7 @@
       that:
         - _tmp_cur_lfilt_handled is truthy
       fail_msg: >-
-        Unsupported error ignore handler type '{{ _iter_cfg_pip_err_ign.type }}'
+        Unsupported error ignore handler type '{{ _iter_cfg_pip_err_ign.value.type }}'
 
 
   - name: all found error lines filtered out by config ignores
