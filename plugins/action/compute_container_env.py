@@ -4,6 +4,7 @@ __metaclass__ = type
 
 
 import collections
+import json
 
 from ansible.errors import AnsibleOptionsError, AnsibleModuleError##, AnsibleError
 ####from ansible.module_utils._text import to_native
@@ -192,6 +193,14 @@ class DockInstEnvHandler(NormalizerBase):
                 av_val = av
 
                 for x in v.split('.'):
+                    if x not in av_val:
+                        raise AnsibleOptionsError(
+                            "invalid auto_version key '{}', partial"\
+                            " subkey '{}' is not valid:\n  {}".format(
+                                v, x, json.dumps(av_val, indent=2).replace('\n', '\n  ')
+                            )
+                        )
+
                     av_val = av_val[x]
 
                 add_new_envkey(k, av_val, resmap, env_keys)
