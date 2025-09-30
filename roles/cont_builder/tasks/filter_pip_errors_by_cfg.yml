@@ -12,8 +12,8 @@
             {{ _tmp_pip_err_lines
              | reject('match', _iter_cfg_pip_err_ign.regex) | list }}
 
-       - set_fact:
-           _tmp_cur_lfilt_handled: true
+      - set_fact:
+          _tmp_cur_lfilt_handled: true
 
     when: >-
       _iter_cfg_pip_err_ign.type == 'regex_match'
