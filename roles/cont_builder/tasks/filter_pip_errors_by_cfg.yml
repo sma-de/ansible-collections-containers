@@ -19,12 +19,12 @@
       _iter_cfg_pip_err_ign.type == 'regex_match'
 
 
- - name: ensure given ignore handler type is supported
-   ansible.builtin.assert:
-     that:
-       - _tmp_cur_lfilt_handled is truthy
-     fail_msg: >-
-       Unsupported error ignore handler type '{{ _iter_cfg_pip_err_ign.type }}'
+  - name: ensure given ignore handler type is supported
+    ansible.builtin.assert:
+      that:
+        - _tmp_cur_lfilt_handled is truthy
+      fail_msg: >-
+        Unsupported error ignore handler type '{{ _iter_cfg_pip_err_ign.type }}'
 
 
   - name: all found error lines filtered out by config ignores
