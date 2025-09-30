@@ -11,6 +11,7 @@
       extra_envs: "{{ compute_contenv_args.extra_envs | default(omit, True) }}"
       extra_syspath: "{{ compute_contenv_args.extra_syspath | default(omit, True) }}"
       duplicate_keys: "{{ compute_contenv_args.duplicate_keys | default(omit, True) }}"
+      auto_version: "{{ compute_contenv_args.auto_version | default(omit, True) }}"
     register: _tmp_modres_
 
     ##
