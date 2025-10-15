@@ -2433,9 +2433,11 @@ class DockConfNormImageUsersGeneric(NormalizerBase):
 
     def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
         # query upstream image metadata
-        pinfs = get_docker_parent_infos(self.pluginref, 
+        pinfs = get_docker_parent_infos(self.pluginref,
           self.get_parentcfg(cfg, cfgpath_abs)
         )
+
+        display.vv("dparent infos:\n{}".format(pinfs))
 
         ##
         ## note: it is possible and legal that in docker image config
