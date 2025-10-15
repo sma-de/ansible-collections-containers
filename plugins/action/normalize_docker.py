@@ -392,11 +392,11 @@ class DockConfNormImageInstance(NormalizerNamed):
         ##   should set a more senseable default
         ##
         setdefault_none(my_subcfg, 'docker_cmd',
-           pinfs['Config']['Cmd'] or ["sh"]
+           pinfs.get('Config', {}).get('Cmd', None) or ["sh"]
         )
 
         setdefault_none(my_subcfg, 'entrypoint',
-           pinfs['Config']['Entrypoint'] or [
+           pinfs.get('Config', {}).get('Entrypoint', None) or [
              ##
              ## note: entrypoint setting is a point which differs a
              ##   bit more compared to docker build, there is no real
