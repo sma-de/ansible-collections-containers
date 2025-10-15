@@ -2437,7 +2437,7 @@ class DockConfNormImageUsersGeneric(NormalizerBase):
           self.get_parentcfg(cfg, cfgpath_abs)
         )
 
-        display.vv("dparent infos:\n{}".format(pinfs))
+        ##display.vv("dparent infos:\n{}".format(pinfs))
 
         ##
         ## note: it is possible and legal that in docker image config
@@ -2446,7 +2446,7 @@ class DockConfNormImageUsersGeneric(NormalizerBase):
         ##   opportunistic splitting here we can handle both cases
         ##   (with or without colon) fine
         ##
-        dpu = (pinfs['Config']['User'] or '').split(':')
+        dpu = (pinfs.get('Config', {}).get('User', None) or '').split(':')
         dpu = dpu[0]
 
         ddu = my_subcfg.get('docker_default_user', None) or {}
