@@ -67,7 +67,12 @@
                  {{ _tmp_in_versions
                   | smabot.base.sort_versions(reverse=True,
                        method=_cur_dockimg.auto_versioning.sorting.method_type,
-                       method_args=_cur_dockimg.auto_versioning.sorting.method_args
+                       method_args=ansible.builtin.combine({
+                           'sortkey': 'idtag',
+                         },
+                         (_cur_dockimg.auto_versioning.sorting.method_args | default({}, True)),
+                         recursive=True
+                       )
                     ) }}
             when: not _cur_dockimg.auto_versioning.fixed_only
 
