@@ -344,6 +344,7 @@ class DockConfNormImageInstance(NormalizerNamed):
           ##
           DockConfNormImgDockCopy(pluginref),
           DockConfNormImgParent(pluginref),
+          DockConfNormImgInstallBootstrap(pluginref),
           ConfigNormerProxy(pluginref, force_ecosystems=True),
           DockConfNormImageInstallMeta(pluginref),
           (DockConfNormImageSCMBased, True), # make this lazy initialized (only set it, when it already exists in input cfg)
@@ -1050,6 +1051,57 @@ class DockConfNormImgFeatSonarqubeScanner(NormalizerBase):
         java = setdefault_none(tmp, 'name', java)
 
         my_subcfg['java'] = java
+        return my_subcfg
+
+
+
+class DockConfNormImgInstallBootstrap(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        subnorms = kwargs.setdefault('sub_normalizers', [])
+        subnorms += [
+          DockConfNormImgInstallBootstrapPython(pluginref),
+        ]
+
+        super(DockConfNormImgInstallBootstrap, self).__init__(
+            pluginref, *args, **kwargs
+        )
+
+    @property
+    def config_path(self):
+        return ['install_bootstrap']
+
+
+
+class DockConfNormImgInstallBootstrapPython(NormalizerBase):
+
+    def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'force_fix_symlinks', DefaultSetterConstant(None)
+        )
+
+        super(DockConfNormImgInstallBootstrapPython, self).__init__(
+            pluginref, *args, **kwargs
+        )
+
+    @property
+    def config_path(self):
+        return ['python']
+
+    def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
+        tmp = my_subcfg['force_fix_symlinks']
+
+        if tmp is None:
+            ## default "force_fix_symlinks"
+            pcfg = self.get_parentcfg(cfg, cfgpath_abs, level=2)
+
+            ##
+            ## this is not really safe for all audiences unfortunately
+            ## but some images should have it on default
+            ##
+            tmp = pcfg['parent']['name'] in ['python']
+            my_subcfg['force_fix_symlinks'] = tmp
+
         return my_subcfg
 
 

@@ -10,6 +10,22 @@
 
       - set_fact:
           _tmp_bootstrapper: debian
+          _tmp_bootstrap_env: >-
+            {{ _tmp_bootstrap_env
+               | ansible.builtin.combine({
+                   'DEBIAN_FRONTEND': 'noninteractive'
+                 })
+            }}
+
+
+      - name: ensoure used source list(s) use archive links
+        ansible.builtin.raw: >-
+          sed -i 's|\(http.\?://\)deb\.debian|\1archive\.debian|gi'
+          /etc/apt/sources.list
+          && sed -i '/:\/\/security\.debian/d' /etc/apt/sources.list
+          && apt-get update
+        when: >-
+          _cur_dockimg.install_bootstrap.debian.apt.force_archive | default(False)
 
 
       - block:
@@ -40,7 +56,9 @@
               }}
               && rm -rf /var/lib/apt/lists/*
 
-        when: _tmp_py_installed.rc != 0
+        when: >-
+          _tmp_py_installed.rc != 0 and not
+          (_cur_dockimg.install_bootstrap.python.disable_core_deps_install | default(False))
 
 
       - block:
@@ -67,12 +85,18 @@
             ##   package manager, meaning we also cannot use system
             ##   package manager to install critical core dependencies
             ##
+            ## update: assumption above is a bit simplistic, trying to
+            ##   install packaging by apt as fallback seems reasonable
+            ##
           - name: install core dependencies
             ansible.builtin.raw: >-
               {{ _tmp_bootstrap_env | smabot.base.kvlist | join(' ') }}
               python3 -m pip install --root-user-action ignore packaging
+              || { apt-get update && apt-get install python3-packaging; }
 
-        when: _tmp_py_installed.rc == 0
+        when: >-
+          _tmp_py_installed.rc == 0 and not
+          (_cur_dockimg.install_bootstrap.python.disable_core_deps_install | default(False))
 
 
     when: _tmp_raw_res.rc == 0

@@ -38,13 +38,18 @@
           force: true
           state: link
           follow: false
+        when: >-
+          (_tmp_py_preinst_path.stdout_lines | first)
+          != _items_interpreter_symlinks.dest
         loop:
           - dest: /usr/bin/python
           - dest: /usr/bin/python3
         loop_control:
           loop_var: _items_interpreter_symlinks
 
-    when: _tmp_py_installed.rc == 0
+    when: >-
+      _tmp_py_installed.rc == 0 and
+      _cur_dockimg.install_bootstrap.python.force_fix_symlinks
 
 
     ##
