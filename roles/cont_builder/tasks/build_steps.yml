@@ -196,6 +196,16 @@
           regex("(?i)externally-managed-environment")
 
 
+      - name: optionally filter out pip errors by user config
+        include_tasks: filter_pip_errors_by_cfg.yml
+        loop: >-
+          {{ (_cur_dockimg.packages.pip.self_update.ignore_errors
+             | default({}, True)) | dict2items
+          }}
+        loop_control:
+          loop_var: _iter_cfg_pip_err_ign
+
+
       - name: ensure that error was handled succesfully
         ansible.builtin.assert:
           that:

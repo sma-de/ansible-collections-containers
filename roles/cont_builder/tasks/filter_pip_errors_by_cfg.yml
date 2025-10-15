@@ -1,0 +1,34 @@
+---
+
+  - set_fact:
+      _tmp_cur_lfilt_handled: false
+
+
+  - block:
+
+      - name: filter out error lines by matching regex
+        set_fact:
+          _tmp_pip_err_lines: >-
+            {{ _tmp_pip_err_lines
+             | reject('match', _iter_cfg_pip_err_ign.value.regex) | list }}
+
+      - set_fact:
+          _tmp_cur_lfilt_handled: true
+
+    when: >-
+      _iter_cfg_pip_err_ign.value.type == 'regex_match'
+
+
+  - name: ensure given ignore handler type is supported
+    ansible.builtin.assert:
+      that:
+        - _tmp_cur_lfilt_handled is truthy
+      fail_msg: >-
+        Unsupported error ignore handler type '{{ _iter_cfg_pip_err_ign.value.type }}'
+
+
+  - name: all found error lines filtered out by config ignores
+    set_fact:
+      _tmp_pip_err_handled: true
+    when: _tmp_pip_err_lines is falsy
+
