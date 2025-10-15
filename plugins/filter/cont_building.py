@@ -49,6 +49,23 @@ class AutoVersionPostProc(FilterBase):
           'capture_group': ([collections.abc.Mapping], {}, cgrp_spec),
         })
 
+        mucap_spec = {
+          'regex': (list(string_types), ''),
+          'versions': ([collections.abc.Mapping], {}),
+          'result_overwrites': ([collections.abc.Mapping], {}),
+        }
+
+        tmp.update({
+          'multi_capture': ([collections.abc.Mapping], {}, mucap_spec),
+        })
+
+        tmeta = tmp.get(MAGIC_ARGSPECKEY_META, None) or {}
+        tmp[MAGIC_ARGSPECKEY_META] = tmeta
+
+        tmeta.setdefault('mutual_exclusions', []).append(
+          ['capture_group', 'multi_capture']
+        )
+
         return tmp
 
 
@@ -76,14 +93,120 @@ class AutoVersionPostProc(FilterBase):
             found_match = None
             for m in re.finditer(tmp, value, flags=re.MULTILINE):
                 if found_match:
-                    raise AnsibleOptionsError(errpxf + " more than one match was found")
+                    raise AnsibleOptionsError(errpfx + " more than one match was found")
 
                 found_match = m.group('version')
 
             if not found_match:
-                raise AnsibleOptionsError(errpxf + " no match was found")
+                raise AnsibleOptionsError(errpfx + " no match was found")
 
             value = found_match
+            return value
+
+        mcap = self.get_taskparam('multi_capture')
+        rgx = mcap['regex']
+        vers = mcap['versions']
+
+        if rgx:
+            res = {'extra_tags': [], 'meta_info': {}}
+
+            ## create final regex from regex template and defined versions
+            tmp = {}
+
+            if 'idtag' not in vers:
+                raise AnsibleOptionsError(
+                    "mandatory versions subkey 'idtag' missing:\n"\
+                    "  {}".format(
+                        json.dumps(mcap, indent=2).replace('\n', '\n  ')
+                    )
+                )
+
+            for k in list(vers.keys()):
+                v = vers[k]
+
+                if not isinstance(v, collections.abc.Mapping):
+                    ## assume simple pattern string
+                    v = {'pattern': v}
+
+                if k == 'idtag':
+                    if v.get('optional', False):
+                        raise AnsibleOptionsError(
+                            "special versions subkey 'idtag' cannot be"\
+                            " optional:\n  {}".format(
+                                json.dumps(mcap, indent=2).replace(
+                                    '\n', '\n  '
+                                )
+                            )
+                        )
+
+                tmp[k.upper()] = (r'(?P<' + k + '>{})').format(v['pattern'])
+                vers[k] = v
+
+            rgx_fin = rgx.format(**tmp)
+
+            errpfx = \
+               "multi capture must match exactly once, but for"\
+               " given regex template '{}' and final templated"\
+               " regex '{}'".format(rgx, rgx_fin)
+
+            found_matches = {}
+
+            for m in re.finditer(rgx_fin, value, flags=re.MULTILINE):
+                if found_matches:
+                    raise AnsibleOptionsError(
+                        errpfx + " more than one match was found"
+                    )
+
+                for k, v in vers.items():
+                    mx = m.group(k)
+
+                    if mx:
+                        found_matches[k] = mx
+
+                        for rk in list(v.get('replacers', {}).keys()):
+                            rv = v['replacers'][rk]
+
+                            if not isinstance(rv, collections.abc.Mapping):
+                                ## assume simple string mapping
+                                rv = {
+                                  'pattern': rk, 'replacement': rv,
+                                }
+
+                            v['replacers'][rk] = rv
+                            mx = re.sub(rv['pattern'], rv['replacement'], mx)
+
+                        res['meta_info'][k] = mx
+
+                        if k != 'idtag' and not v.get('no_imgtag', False):
+                            tf = v.get('tag_format', None)
+
+                            if tf:
+                                res['extra_tags'].append(
+                                    tf.format(**res['meta_info'])
+                                )
+
+                            else:
+                                res['extra_tags'].append(mx)
+
+                        continue
+
+                    if not v.get('optional', False):
+                        raise AnsibleOptionsError(
+                            "failed to find a match for mandatory versions"\
+                            " subgroup '{}' using regex '{}' trying to"\
+                            " match on this value:\n  '{}'".format(
+                                k, rgx_fin, value
+                            )
+                        )
+
+            if not found_matches:
+                raise AnsibleOptionsError(errpfx + " no match was found")
+
+            res.update(mcap['result_overwrites'])
+
+            res['idtag'] = found_matches['idtag']
+            res['ver_in'] = value
+            return res
 
         return value
 

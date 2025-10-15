@@ -473,6 +473,7 @@
         extra_syspath:
           - "{{ _cur_image_env.syspath }}"   ## | default({}, True) }}"
         duplicate_keys: 'overwrite'
+        auto_version: "{{ _autovcfg_iter }}"
 
   - debug:
       var: _cur_dockimg

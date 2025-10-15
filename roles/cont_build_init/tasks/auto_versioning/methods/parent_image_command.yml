@@ -21,14 +21,13 @@
 
       pull: true
 
-##      ## this runs as one-of adhoc command, so remove all 
-##      ## traces of it when the process finishes
-##      auto_remove: true
-##      keep_volumes: false
-
       tty: true
       entrypoint: '/bin/sh'
       command: -c tail -f /dev/null
+
+      env: >-
+        {{ _dbimg_iter.value.auto_versioning.method_args.env
+         | default(omit, True) }}
 
 
   - community.docker.docker_container_exec:
@@ -38,6 +37,8 @@
     register: _tmp_autover_res
 
 
+    ## this runs as one-of adhoc command, so remove all
+    ## traces of it when the process finishes
   - community.docker.docker_container:
       name: tmp_get_autover_parent_image
       state: absent

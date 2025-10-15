@@ -4,6 +4,7 @@ __metaclass__ = type
 
 
 import collections
+import json
 
 from ansible.errors import AnsibleOptionsError, AnsibleModuleError##, AnsibleError
 ####from ansible.module_utils._text import to_native
@@ -183,6 +184,27 @@ class DockInstEnvHandler(NormalizerBase):
         if shellers:
             handle_shellers(shellers, env_keys, resmap)
 
+        from_av = dynenv.get('from_autover', {})
+
+        if from_av:
+            av = self.pluginref.get_taskparam('auto_version')
+
+            for k, v in from_av.items():
+                av_val = av
+
+                for x in v.split('.'):
+                    if x not in av_val:
+                        raise AnsibleOptionsError(
+                            "invalid auto_version key '{}', partial"\
+                            " subkey '{}' is not valid:\n  {}".format(
+                                v, x, json.dumps(av_val, indent=2).replace('\n', '\n  ')
+                            )
+                        )
+
+                    av_val = av_val[x]
+
+                add_new_envkey(k, av_val, resmap, env_keys)
+
         constenv.update(resmap)
 
         ## handle some generic special cases
@@ -226,6 +248,7 @@ class ActionModule(ConfigNormalizerBase):
           'modify_path': ([collections.abc.Mapping], {}),
           'extra_syspath': ([[collections.abc.Mapping]], []),
           'duplicate_keys': (list(string_types), 'error', ['overwrite', 'error']),
+          'auto_version': ([collections.abc.Mapping], {}),
         })
 
         return tmp
