@@ -348,6 +348,18 @@
     when: _cur_dockimg.packages.pysrc.packages
 
 
+  - name: handle optional matlab package installs  ==>>  {{ _cur_dockimg.fullname }}
+    include_tasks: packages/matlab/main.yml
+    loop: >-
+      {{ _cur_dockimg.packages.matlab_packages
+       | smabot.containers.to_psets(
+          auto_version=_autovcfg_iter,
+       ) }}
+    loop_control:
+      loop_var: _iter_packinst
+    when: _cur_dockimg.packages.matlab_packages.packages
+
+
 ## handle locales
 
   - block:

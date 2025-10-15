@@ -1,0 +1,122 @@
+---
+
+##
+## this method is based on this:
+##   -> https://github.com/mathworks-ref-arch/matlab-dockerfile/tree/main/alternates/building-on-matlab-docker-image
+##
+
+## TODO: support absent state???
+## TODO: support giving explicit version state for matlab packages???
+
+  - set_fact:
+      _tmp_valid_cfg:
+        states:
+          - latest
+          - present
+
+
+  - name: check if given package config is valid
+    ansible.builtin.assert:
+      that:
+        - >-
+          not _iter_packinst.get('state', None) or
+          _iter_packinst.state in _tmp_valid_cfg.states
+      fail_msg: |-
+        Currently only the following package states are supported:
+          {{ _tmp_valid_cfg.states }}
+
+
+  - name: get path to matlab binary
+    smabot.base.command_which:
+      cmd: matlab
+    register: _tmp_modres_which_mlab
+
+
+  - name: ensure matlab binary is accessable
+    ansible.builtin.assert:
+      that:
+        - _tmp_modres_which_mlab.abspath is truthy
+      fail_msg: >-
+        matlab binary is either not installed or at least not
+        accessable as executable on $PATH
+
+
+  - name: get path to mpm binary
+    smabot.base.command_which:
+      cmd: mpm
+    register: _tmp_modres_which_mpm
+
+
+  - name: ensure mpm binary is accessable
+    ansible.builtin.assert:
+      that:
+        - _tmp_modres_which_mpm.abspath is truthy
+      fail_msg: >-
+        matlab package manager mpm is either not installed or at
+        least not accessable as executable on $PATH
+    when: >-
+      (_iter_packinst.mpm.auto_install | default(False)) is falsy
+
+
+  - name: auto-install mpm package manager
+    ansible.builtin.get_url: "{{ _iter_packinst.mpm.auto_install.config }}"
+    when: >-
+       (_iter_packinst.mpm.auto_install | default(False)) is truthy
+       and _tmp_modres_which_mpm.abspath is falsy
+
+
+    ## note: we need to know the home dir here of the final image matlab user
+  - name: get home dir of matlab image user
+    ansible.builtin.shell: >-
+      getent passwd '{{ _cur_dockimg.docker_user.real }}' | cut -d: -f6
+    register: _tmp_modres_usrhome
+
+
+  - set_fact:
+      _tmp_modinst_cfg:
+        mlab_loc: >-
+          {{ _iter_packinst.matlab_location
+           | default((_tmp_modres_which_mlab.linksrc
+                 | default(_tmp_modres_which_mlab.abspath, True)
+               ) | dirname | dirname, True
+             )
+          }}
+
+        mlab_ver: "{{ _autovcfg_iter.meta_info.release }}"
+
+        products: >-
+          {{ _iter_packinst.name | join(' ') }}
+
+
+  - name: run matlab package installer
+    ansible.builtin.shell:
+      cmd: |
+        export HOME='{{ _tmp_modres_usrhome.stdout_lines | first }}'
+
+        mpm install --destination='{{ _tmp_modinst_cfg.mlab_loc }}' \
+          --release='{{ _tmp_modinst_cfg.mlab_ver }}' \
+          --products {{ _tmp_modinst_cfg.products }}
+
+        rc="$?"
+
+        if [ "$rc" -ne 0 ]; then
+          echo "Installing matlab packages failed, install log:" >&2
+          sudo cat /tmp/mathworks_*.log >&2
+
+          exit "$rc"
+        fi
+
+        rm -rf /tmp/mathworks_*.log
+
+
+  - name: >-
+      remove auto-installed matlab package manager
+      again when keeping was disabled
+    ansible.builtin.file:
+      path: "{{ _iter_packinst.mpm.auto_install.config.dest }}"
+      state: absent
+    when: >-
+       (_iter_packinst.mpm.auto_install | default(False)) is truthy
+       and _tmp_modres_which_mpm.abspath is falsy
+       and _iter_packinst.mpm.auto_install.keep is falsy
+
