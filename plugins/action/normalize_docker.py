@@ -391,11 +391,11 @@ class DockConfNormImageInstance(NormalizerNamed):
         ##   should set a more senseable default
         ##
         setdefault_none(my_subcfg, 'docker_cmd',
-           pinfs['Config']['Cmd'] or ["sh"]
+           pinfs.get('Config', {}).get('Cmd', None) or ["sh"]
         )
 
         setdefault_none(my_subcfg, 'entrypoint',
-           pinfs['Config']['Entrypoint'] or [
+           pinfs.get('Config', {}).get('Entrypoint', None) or [
              ##
              ## note: entrypoint setting is a point which differs a
              ##   bit more compared to docker build, there is no real
@@ -1875,6 +1875,7 @@ class DockConfNormImageNpmPackages(DockConfNormImageXPackBase):
         return my_subcfg
 
 
+
 class DockConfNormImageSCMBased(NormalizerBase):
 
     NORMER_CONFIG_PATH = ['scm_based']
@@ -2329,9 +2330,11 @@ class DockConfNormImageUsersGeneric(NormalizerBase):
 
     def _handle_specifics_postsub(self, cfg, my_subcfg, cfgpath_abs):
         # query upstream image metadata
-        pinfs = get_docker_parent_infos(self.pluginref, 
+        pinfs = get_docker_parent_infos(self.pluginref,
           self.get_parentcfg(cfg, cfgpath_abs)
         )
+
+        ##display.vv("dparent infos:\n{}".format(pinfs))
 
         ##
         ## note: it is possible and legal that in docker image config
@@ -2340,7 +2343,7 @@ class DockConfNormImageUsersGeneric(NormalizerBase):
         ##   opportunistic splitting here we can handle both cases
         ##   (with or without colon) fine
         ##
-        dpu = (pinfs['Config']['User'] or '').split(':')
+        dpu = (pinfs.get('Config', {}).get('User', None) or '').split(':')
         dpu = dpu[0]
 
         ddu = my_subcfg.get('docker_default_user', None) or {}
