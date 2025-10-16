@@ -56,6 +56,12 @@
         when: not (docker_build_keep_buildcon | default(False))
         delegate_to: localhost
 
+        ##
+        ## sometimes this cleanup is unrealiable for some reason try
+        ## to mitigate this with automatic retries
+        ##
+        retries: 3
+
 
 ##   - include_role: 
 ##       name: hashicorp_vault_sma_login
