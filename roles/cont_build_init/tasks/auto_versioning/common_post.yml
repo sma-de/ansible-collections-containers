@@ -16,6 +16,8 @@
             {{ _autovcfg_iter.ver_in | default(_autovcfg_iter, True) }}
          meta_info: >-
            {{ _autovcfg_iter.meta_info | default({}, True) }}
+      _tmp_no_ver_in_tag: >-
+        {{ _autovcfg_iter.no_ver_in_tag | default(False, True) }}
 
 
   - name: make version tag for raw version in
@@ -23,7 +25,7 @@
       _tmp_build_tags: "{{ _tmp_build_tags + [_tmp_cur_autover.version_in] }}"
     when: >-
       _cur_dockimg.auto_versioning.default_tags and
-      not _autovcfg_iter.get('no_ver_in_tag', False)
+      not _tmp_no_ver_in_tag
 
 
   - name: make version tag for idtag
@@ -57,7 +59,7 @@
       optionally add any auto version defined extra image tags when defined
     set_fact:
       _tmp_build_tags: >-
-        {{ _tmp_build_tags + _autovcfg_iter.extra_tags | default([], True) }}
+        {{ _tmp_build_tags + (_autovcfg_iter.extra_tags | default([], True)) }}
 
 
 ##  - name: decorate image with auto-version data
