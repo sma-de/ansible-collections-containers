@@ -57,8 +57,9 @@
               && rm -rf /var/lib/apt/lists/*
 
         when: >-
-          _tmp_py_installed.rc != 0 and not
-          (_cur_dockimg.install_bootstrap.python.disable_core_deps_install | default(False))
+          (_tmp_py_installed.rc != 0 or
+            _cur_dockimg.install_bootstrap.python.force_core_deps_install | default(False))
+          and not (_cur_dockimg.install_bootstrap.python.disable_core_deps_install | default(False))
 
 
       - block:
