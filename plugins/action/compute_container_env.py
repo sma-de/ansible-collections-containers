@@ -47,8 +47,26 @@ class DockInstEnvHandler(NormalizerBase):
         absents = {}
         keep_presets = False
 
+        def norm_path(px):
+            if not isinstance(px, collections.abc.Mapping):
+                ## assume simple string
+                return px
+
+            if px.get('shell', False):
+                ## optionally run given input string as cmd through
+                ## shell and use result value as path string
+                modret = self.pluginref.exec_module('shell',
+                  modargs={'cmd': px['value']}
+                )
+
+                px['value'] = modret['stdout']
+
+            return px['value']
+
         for mp in modpath:
             for p in (mp.get('present', None) or []):
+                p = norm_path(p)
+
                 if p in presents['all']:
                     ## dont add something twice
                     continue
@@ -61,6 +79,8 @@ class DockInstEnvHandler(NormalizerBase):
                 presents['all'][p] = 'end'
 
             for p in (mp.get('present_front', None) or []):
+                p = norm_path(p)
+
                 if p in presents['front']:
                     ## dont add something twice
                     continue
@@ -79,6 +99,7 @@ class DockInstEnvHandler(NormalizerBase):
                 presents['all'][p] = 'front'
 
             for a in (mp.get('absent', None) or []):
+                a = norm_path(a)
                 absents[a] = True
 
                 # check if current absentee was added as presentee
@@ -132,7 +153,7 @@ class DockInstEnvHandler(NormalizerBase):
 
         def handle_shellers(shellmap, env_keys, resmap):
             for (k, v) in iteritems(shellmap):
-                modret = self.pluginref.exec_module('shell', 
+                modret = self.pluginref.exec_module('shell',
                   modargs={'cmd': v}
                 )
 
