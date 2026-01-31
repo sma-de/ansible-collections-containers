@@ -348,10 +348,7 @@ class PSetsFilter(FilterBase):
 
         merge_dicts(pcfg, pdst.get('config', {}))
 
-        if pdst['singlefile']:
-            pcfg['dest'] = os.path.dirname(dest_path)
-        else:
-            pcfg['dest'] = dest_path
+        pcfg['dest'] = dest_path
 
         unpack_cfg = setdefault_none(pdst, 'unpacking', False)
 
@@ -359,6 +356,9 @@ class PSetsFilter(FilterBase):
             if not isinstance(unpack_cfg, collections.abc.Mapping):
                 unpack_cfg = {}
                 pdst['unpacking'] = unpack_cfg
+
+            if pdst['singlefile']:
+                pcfg['dest'] = os.path.dirname(dest_path)
 
             csums = setdefault_none(unpack_cfg, 'checksums', {})
             for k in csums:
