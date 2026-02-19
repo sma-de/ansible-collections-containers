@@ -579,6 +579,7 @@ class AppendContEnvFilter(FilterBase):
     def _do_strat_basic(self, conflict_handler, key, curvars, newvars, **kwargs):
         if key not in curvars:
             # if key is also new, we dont have a conflict
+            ##display.vv("key is new: |{}|".format(key))
             return newvars[key]
 
         oldval = curvars[key]
@@ -611,12 +612,17 @@ class AppendContEnvFilter(FilterBase):
 
     def do_strat_replace(self, key, oldval, newval, **kwargs):
         ## replace strat always prefers newval over oldval
+        ##display.vv("do strat: replace ...")
         return newval
 
 
     def do_strat_combine(self, key, oldval, newval, 
         old_first=True, combiner=' ', **kwargs
     ):
+        ##display.vv("do strat: combine ...")
+        ##display.vvv("oldval = '{}'".format(oldval))
+        ##display.vvv("newval = '{}'".format(newval))
+
         ## combine strat combines old and new value
         if old_first:
             return oldval + combiner + newval

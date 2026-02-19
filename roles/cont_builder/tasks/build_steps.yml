@@ -478,7 +478,6 @@
         extra_envs:
           - "{{ _cur_image_env.vars }}"
           - "{{ _cur_dockimg.proxy.vars | default({}) }}"
-          - "{{ _java_proxy_env }}"
           - "{{ _cur_image_deco | smabot.containers.deco_to_env }}"
         extra_syspath:
           - "{{ _cur_image_env.syspath }}"   ## | default({}, True) }}"

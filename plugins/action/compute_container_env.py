@@ -179,7 +179,11 @@ class DockInstEnvHandler(NormalizerBase):
                 add_new_envkey(k, modret['stdout'], resmap, env_keys)
 
         constenv = get_subdict(my_subcfg, ['static'], default_empty=True)
-        ##constenv.clear() ## why, this doesn't make sense here????
+
+        ## update: for various reasons we actually get already correct
+        ##   updated static vars as extra_envs submap param given,
+        ##   which is the reason we kill static from config here
+        constenv.clear()
 
         env_keys = set()
 
