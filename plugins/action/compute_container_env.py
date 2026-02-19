@@ -140,6 +140,7 @@ class DockInstEnvHandler(NormalizerBase):
 
     def _handle_specifics_presub(self, cfg, my_subcfg, cfgpath_abs):
         handle_dups = self.pluginref.get_taskparam('duplicate_keys')
+        force_lists = my_subcfg.get('force_list_mode', None) or {}
 
         def add_new_envkey(k, v, resmap, keys, handle_dups=handle_dups):
             if k in keys:
@@ -147,6 +148,24 @@ class DockInstEnvHandler(NormalizerBase):
                     raise AnsibleOptionsError(
                       "duplicate environment key '{}'".format(k)
                     )
+
+            if handle_dups == 'list_append' and isinstance(v, list):
+                force_x = force_lists.get(k, None) or {}
+                force_x_ena = setdefault_none(force_x, 'enabled', True)
+
+                if not isinstance(v, list) and force_x_ena:
+                    v = [v]
+
+                if isinstance(v, list):
+                    ## if duplicate mode is "list_append" and latest
+                    ## value is list, make result list
+                    oldval = resmap.get(k, None) or []
+
+                    if not isinstance(oldval, list):
+                        oldval = [oldval]
+
+                    oldval += v
+                    v = oldval
 
             resmap[k] = v
             keys.add(k)
@@ -160,7 +179,7 @@ class DockInstEnvHandler(NormalizerBase):
                 add_new_envkey(k, modret['stdout'], resmap, env_keys)
 
         constenv = get_subdict(my_subcfg, ['static'], default_empty=True)
-        constenv.clear()
+        ##constenv.clear() ## why, this doesn't make sense here????
 
         env_keys = set()
 
@@ -179,54 +198,61 @@ class DockInstEnvHandler(NormalizerBase):
 
         modpath += self.pluginref.get_taskparam('extra_syspath')
 
-        if not dynenv and not modpath:
-            ## no dynamic cfg set, nothing to do
-            return my_subcfg
+        if dynenv or modpath:
+            resmap = {}
 
-        resmap = {}
+            tmp = {}
 
-        tmp = {}
+            for (k, v) in iteritems(dynenv.get('expand', {})):
+                # use standard env shelling mechanism for expanding env vars
+                tmp[k] = 'echo {}'.format(v)
 
-        for (k, v) in iteritems(dynenv.get('expand', {})):
-            # use standard env shelling mechanism for expanding env vars
-            tmp[k] = 'echo {}'.format(v)
+            if modpath:
+                # get currently set path on image to build
+                tmp['PATH'] = 'echo {}'.format('$PATH')
 
-        if modpath:
-            # get currently set path on image to build
-            tmp['PATH'] = 'echo {}'.format('$PATH')
+            if tmp:
+                handle_shellers(tmp, env_keys, resmap)
 
-        if tmp:
-            handle_shellers(tmp, env_keys, resmap)
+            self._handle_modpath(modpath, resmap)
+            shellers = dynenv.get('shell', {})
 
-        self._handle_modpath(modpath, resmap)
+            if shellers:
+                handle_shellers(shellers, env_keys, resmap)
 
-        shellers = dynenv.get('shell', {})
+            from_av = dynenv.get('from_autover', {})
 
-        if shellers:
-            handle_shellers(shellers, env_keys, resmap)
+            if from_av:
+                av = self.pluginref.get_taskparam('auto_version')
 
-        from_av = dynenv.get('from_autover', {})
+                for k, v in from_av.items():
+                    av_val = av
 
-        if from_av:
-            av = self.pluginref.get_taskparam('auto_version')
-
-            for k, v in from_av.items():
-                av_val = av
-
-                for x in v.split('.'):
-                    if x not in av_val:
-                        raise AnsibleOptionsError(
-                            "invalid auto_version key '{}', partial"\
-                            " subkey '{}' is not valid:\n  {}".format(
-                                v, x, json.dumps(av_val, indent=2).replace('\n', '\n  ')
+                    for x in v.split('.'):
+                        if x not in av_val:
+                            raise AnsibleOptionsError(
+                                "invalid auto_version key '{}', partial"\
+                                " subkey '{}' is not valid:\n  {}".format(
+                                    v, x, json.dumps(av_val, indent=2).replace(
+                                       '\n', '\n  '
+                                    )
+                                )
                             )
-                        )
 
-                    av_val = av_val[x]
+                        av_val = av_val[x]
+                    add_new_envkey(k, av_val, resmap, env_keys)
 
-                add_new_envkey(k, av_val, resmap, env_keys)
+            constenv.update(resmap)
 
-        constenv.update(resmap)
+        ## finalize / norm env vars
+        for k in list(constenv.keys()):
+            v = constenv[k]
+
+            if isinstance(v, list):
+                ## make list values strings
+                v = ' '.join(v)
+
+            constenv[k] = v
 
         ## handle some generic special cases
 
@@ -268,7 +294,9 @@ class ActionModule(ConfigNormalizerBase):
           'extra_envs': ([[collections.abc.Mapping]], []),
           'modify_path': ([collections.abc.Mapping], {}),
           'extra_syspath': ([[collections.abc.Mapping]], []),
-          'duplicate_keys': (list(string_types), 'error', ['overwrite', 'error']),
+          'duplicate_keys': (list(string_types), 'error',
+             ['overwrite', 'error', 'list_append']
+          ),
           'auto_version': ([collections.abc.Mapping], {}),
         })
 

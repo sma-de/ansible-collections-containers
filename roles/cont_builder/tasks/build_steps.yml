@@ -482,7 +482,7 @@
           - "{{ _cur_image_deco | smabot.containers.deco_to_env }}"
         extra_syspath:
           - "{{ _cur_image_env.syspath }}"   ## | default({}, True) }}"
-        duplicate_keys: 'overwrite'
+        duplicate_keys: 'list_append'
         auto_version: "{{ _autovcfg_iter }}"
 
   - debug:
