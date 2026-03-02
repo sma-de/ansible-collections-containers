@@ -1,0 +1,34 @@
+---
+
+##
+## hard restart variant is analogous to a docker
+## compose down + up cycle
+##
+## variables / "args" for this handler:
+##
+##  smabot_dockcompose_prjdir: # project srcdir, mandatory
+##
+##  # to optionally wait for restarted webservice to get ready again, directly passed through to called role
+##  smabot_base_wait_until_webservice_ready_args:
+##
+
+  - name: "shut down docker compose project (v2)"
+    community.docker.docker_compose_v2:
+      project_src: "{{ smabot_dockcompose_prjdir }}"
+      state: absent
+
+  - name: "bring up docker compose project (v2)"
+    community.docker.docker_compose_v2:
+      project_src: "{{ smabot_dockcompose_prjdir }}"
+      state: present
+      pull: never
+    notify: "wait until webservice is ready"
+
+
+## TODO: unfortunately atm it is not possible to call a role from a
+##   handler and it is not clear if this will ever change at all: https://github.com/ansible/ansible/issues/20493#issuecomment-1028003619
+##  - ansible.builtin.include_role:
+##      name: smabot.base.wait_until_webservice_ready
+##    when: >-
+##      smabot_base_wait_until_webservice_ready_args is defined
+
