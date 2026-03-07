@@ -11,5 +11,5 @@
     loop_control:
       loop_var: _dbimg_iter
     when: >-
-      {{ _dbimg_owner_iter.value.enabled }}
+      {{ _dbimg_iter.value.enabled }}
 
