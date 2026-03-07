@@ -10,4 +10,6 @@
       {{ _dbimg_owner_iter.value | dict2items() }}
     loop_control:
       loop_var: _dbimg_iter
+    when: >-
+      {{ _dbimg_owner_iter.value.enabled }}
 

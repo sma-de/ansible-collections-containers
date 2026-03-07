@@ -317,6 +317,10 @@ class DockConfNormImageInstance(NormalizerNamed):
 
     def __init__(self, pluginref, *args, **kwargs):
         self._add_defaultsetter(kwargs,
+          'enabled', DefaultSetterConstant(True)
+        )
+
+        self._add_defaultsetter(kwargs,
           'sys_path', DefaultSetterConstant({})
         )
 
