@@ -91,7 +91,7 @@
 
 
       - ansible.builtin.assert:
-          that: _tmp_bootstrapper
+          that: _tmp_bootstrapper is truthy
           fail_msg: >-
              Could not bootstrap container image. Parent OS not recognized.
              Seems not to be one of the supported:
