@@ -60,10 +60,10 @@
                       | map('basename') | list }}
                 when: _tmp_matching_dirs.matched > 0
 
-            when: _tmp_pre_init_roledirs
+            when: (_tmp_pre_init_roledirs | length) > 0
 
 
-        when: not _tmp_pre_init_roles
+        when: not ((_tmp_pre_init_roles | length) > 0)
 
 
       - name: optionally run custom pre init roles
