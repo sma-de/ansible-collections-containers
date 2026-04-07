@@ -50,14 +50,14 @@
 
   - set_fact:
       _build_tags: "{{ _autovcfg_iter.tags + _build_tags }}"
-    when: _autovcfg_iter.tags | default(False, True)
+    when: (_autovcfg_iter.tags | default(False, True)) is truthy
 
   - name: >-
       no explicit tags for this build found, so build default 
       tag latest  ==>>  {{ _cur_dockimg.fullname }}
     set_fact:
       _build_tags: ['latest']
-    when: not _build_tags
+    when: (_build_tags | length) == 0
 
 
   - include_tasks: postbuild_tasks.yml
