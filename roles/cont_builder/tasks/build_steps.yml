@@ -112,7 +112,7 @@
       smabot_base_manage_os_users_and_groups_args: >-
         {{ _cur_dockimg.users._user_upstream_cfg }}
     when: >-
-      _cur_dockimg.users._user_upstream_cfg | default(false)
+      (_cur_dockimg.users._user_upstream_cfg | default(False)) is truthy
 
 
 ## handle docker copy (might depend on newly created users)
@@ -321,7 +321,8 @@
 
   - name: handle optional pip requirements files  ==>>  {{ _cur_dockimg.fullname }}
     include_tasks: packages/pip/requirements.yml
-    when: _cur_dockimg.packages.pip.requirements.sources
+    when: >-
+      _cur_dockimg.packages.pip.requirements.sources is truthy
 
 
   - name: npm package installs  ==>>  {{ _cur_dockimg.fullname }}
@@ -355,7 +356,7 @@
          | smabot.containers.to_psets(
               auto_version=_autovcfg_iter, grouped=False,
          ) }}
-    when: _cur_dockimg.packages.pysrc.packages
+    when: _cur_dockimg.packages.pysrc.packages is truthy
 
 
   - name: handle optional matlab package installs  ==>>  {{ _cur_dockimg.fullname }}
@@ -367,7 +368,7 @@
        ) }}
     loop_control:
       loop_var: _iter_packinst
-    when: _cur_dockimg.packages.matlab_packages.packages
+    when: _cur_dockimg.packages.matlab_packages.packages is truthy
 
 
 ## handle locales
@@ -413,7 +414,7 @@
     vars:
       smabot_base_setup_sudo_args: >-
         {{ _cur_dockimg.features.sudo }}
-    when: _cur_dockimg.features.get('sudo', False)
+    when: _cur_dockimg.features.get('sudo', False) is truthy
 
 
   - block:
@@ -439,7 +440,7 @@
              }}
         when: smabot_base_setup_sonarscan_result.envvars is truthy
 
-    when: _cur_dockimg.features.get('sonarqube_scanner', False)
+    when: _cur_dockimg.features.get('sonarqube_scanner', False) is truthy
 
 
 ## do steps postpackage
@@ -457,7 +458,7 @@
               new_vars={'USER': _cur_dockimg.docker_user.real}
             )
          }}
-    when: _cur_dockimg.docker_user.real | default(False)
+    when: (_cur_dockimg.docker_user.real | default(False)) is truthy
 
 
   ##
