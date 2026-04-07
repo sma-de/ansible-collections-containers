@@ -119,7 +119,7 @@
           loop_var: _autovcfg_iter
           index_var: _autovcfg_index
 
-    when: _cur_dockimg.get('auto_versioning', False)
+    when: _cur_dockimg.get('auto_versioning', False) is truthy
 
 
   - name: remember original python interpreter
