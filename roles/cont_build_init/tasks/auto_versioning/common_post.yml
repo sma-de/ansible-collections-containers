@@ -52,7 +52,7 @@
           _cur_dockimg.auto_versioning.default_tags
 
     when: >-
-      _tmp_scm_timestamp
+      _tmp_scm_timestamp is truthy
 
 
   - name: >-
