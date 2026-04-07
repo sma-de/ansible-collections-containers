@@ -110,7 +110,7 @@
                 timestamp from type
                 '{{ _cur_dockimg.auto_versioning.scm_based.type }}'
 
-        when: _cur_dockimg.auto_versioning.scm_based
+        when: _cur_dockimg.auto_versioning.scm_based is truthy
 
 
       - include_tasks: auto_versioning/common_post.yml
