@@ -8,7 +8,13 @@
 ##
 
   - set_fact:
-      _cur_img_parent: "{{ _dbimg_iter.value.parent }}"
+      _cur_img_parent: >-
+         {{ _dbimg_iter.value.parent | smabot.base.deepcopy
+            | ansible.builtin.combine(
+              'tag': (_autovcfg_iter.parent_tag
+                 | default(_dbimg_iter.value.parent.tag, True)
+              )
+            ) }}
 
 
     ##
