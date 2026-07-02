@@ -19,6 +19,15 @@
       _tmp_no_ver_in_tag: >-
         {{ _autovcfg_iter.no_ver_in_tag | default(False, True) }}
 
+  - set_fact:
+      _tmp_cur_autover: >-
+         {{ _tmp_cur_autover | ansible.builtin.combine({
+              'parent_tag': _autovcfg_iter.parent_tag,
+            })
+         }}
+    when: >-
+      (_autovcfg_iter.parent_tag | default(False)) is truthy
+
 
   - name: make version tag for raw version in
     set_fact:
