@@ -858,6 +858,203 @@ class AptInstallScriptFilter(FilterBase):
 
 
 
+class VerSpecificParentBuildFilter(FilterBase):
+
+    FILTER_ID = 'verspecific_parent_build'
+
+    @property
+    def argspec(self):
+        tmp = super(VerSpecificParentBuildFilter, self).argspec
+
+        tmp.update({
+          'version_cfg': ([collections.abc.Mapping],),
+        })
+
+        return tmp
+
+
+    def get_condition_check_data(self, img_cfg, ver_cfg, cond_cfg):
+         cs = cond_cfg['scope']
+
+         if cs == 'version_specific':
+             return ver_cfg
+
+         ansible_assert(False,
+           "Unsupported condition scope value '{}'".format(cs)
+         )
+
+
+    def match_cfg_condition(self, img_cfg, ver_cfg, cond_cfg):
+        cdat = self.get_condition_check_data(img_cfg, ver_cfg, cond_cfg)
+
+        for k, v in cond_cfg['checks'].items():
+            ct = v['check_type']
+
+            if ct == 'subkey_not_empty':
+                ## checks if cdat contains subkey (chain)
+                ## with a non empty value at the end
+                kc = v['testkey'].split('.')
+
+                tmp = cdat
+                for x in kc:
+                    tmp = tmp.get(x, None)
+
+                    if not tmp:
+                        ## check failed
+                        return False
+
+                ## check okay, go to next one
+                continue
+
+            ansible_assert(False,
+              "Unsupported condition check type '{}'".format(ct)
+            )
+
+        ## all checks okay
+        return True
+
+
+    def apply_matching_conditional_cfgs(self, img_cfg, ver_cfg, res):
+        for k, v in (img_cfg.get('conditional_config', None) or {}).items():
+            cfg_match = True
+
+            for ck, cv in v['conditions'].items():
+                if not self.match_cfg_condition(img_cfg, ver_cfg, cv):
+                    ## one condition failed => no match
+                    cfg_match = False
+                    break
+
+            if not cfg_match:
+                ## skip non matching conditional cfg block
+                continue
+
+            merge_dicts(res, copy.deepcopy(
+              v['config'].get('parent_build', None) or {})
+            )
+
+
+    def normalize_res_cfg(self, img_cfg, ver_cfg, res):
+        ## default build parent img name to docker cfg parent setting
+        setdefault_none(res, 'image_name', img_cfg['parent']['name'])
+        setdefault_none(res, 'push', False)
+        setdefault_none(res, 'default_outputs', True)
+
+        b_ctxt = res.get('build_context', {})
+        b_args = b_ctxt.get('build_args', {})
+
+        pu_cfg = setdefault_none(res, 'push_settings', {})
+
+        up_keys = list((pu_cfg.get('upload_registries', None) or {}).keys())
+        for uk in up_keys:
+            uv = pu_cfg['upload_registries'][uk] or {}
+
+            uv = merge_dicts({
+              ## add default upload creds source
+              'upload_creds': {
+                'from_env': {
+                   'user_var': 'DOCKER_UPLOAD_USER',
+                   'pw_var': 'DOCKER_UPLOAD_PASSWORD',
+                   'mandatory': False,
+                }
+              },
+              'upload_creds_defaults': {
+                 'reauthorize': True,
+              },
+              'stay_logged_in': False, 'login_mandatory': False,
+            }, uv)
+
+            uv['upload_creds_defaults']['registry_url'] = uk
+
+            ## normalize all configured upload cred sources
+            for uck, ucv in uv['upload_creds'].items():
+                setdefault_none(ucv, 'type', uck)
+                setdefault_none(ucv, 'mandatory', False)
+
+            pu_cfg['upload_registries'][uk] = uv
+
+        bm_cfg = setdefault_none(res, 'mod_configs', {})
+        bm_cfg = setdefault_none(bm_cfg, 'build', {})
+
+        bm_cfg['name'] = res['image_name']
+
+        b_path = b_ctxt.get('path', None)
+
+        if b_path:
+            bm_cfg['path'] = b_path
+
+        if b_args:
+            bm_cfg['args'] = b_args
+
+        ## default build parent img tag to docker cfg parent setting
+        def_tag = img_cfg['parent']['tag']
+        tl = res.get('tags', None)
+
+        if tl:
+            def_tag = tl[0]
+        else:
+            tl = [def_tag]
+
+        bm_cfg['tag'] = def_tag
+
+        setdefault_none(bm_cfg, 'pull', True)
+
+        outs = setdefault_none(bm_cfg, 'outputs', [])
+
+        if res['default_outputs']:
+            ## on default we create one docker result image for each
+            ## defined name + tag combi and depending on setting will
+            ## push it
+            for t in tl:
+                cn = "{}:{}".format(bm_cfg['name'], t)
+                outs.append({'type': 'image', 'name': cn})
+
+                if res['push']:
+                    for k, v in pu_cfg['upload_registries'].items():
+                        if not isinstance(v, collections.abc.Mapping):
+                            ## assume simple string
+                            v = {'upload_id': v}
+
+                        setdefault_none(v, 'upload_id', k)
+
+                        cnup = "{}/{}".format(v['upload_id'], cn)
+                        outs.append({'type': 'image',
+                          'name': cnup, 'push': True}
+                        )
+
+
+    def run_specific(self, value):
+        if not isinstance(value, collections.abc.Mapping):
+            raise AnsibleOptionsError("filter input must be a mapping")
+
+        ##display.vvv("AptInstallScriptFilter.run_specific: input mapping:\n{}".format(json.dumps(value, indent=2)))
+
+        vcfg = self.get_taskparam('version_cfg')
+
+        ## get optional standard parent build subcfg
+        res = copy.deepcopy(value.get('parent_build', None) or {})
+
+        ## get optional conditional parent build subcfg
+        ## and combine it with other config sources
+        self.apply_matching_conditional_cfgs(value, vcfg, res)
+
+        ## get optional version specific build subcfg
+        ## and combine it with other config sources
+        merge_dicts(res, copy.deepcopy(
+          vcfg.get('parent_build', None) or None
+        ))
+
+        if not res:
+            ## no parent build for this case
+            return {'enabled': False}
+
+        res['enabled'] = True
+
+        ## complete config with normalisation
+        self.normalize_res_cfg(value, vcfg, res)
+        return res
+
+
+
 # ---- Ansible filters ----
 class FilterModule(object):
     ''' filter related to container building '''
@@ -875,6 +1072,7 @@ class FilterModule(object):
            PSetsFilter,
            UpdateParentFilter,
            AptInstallScriptFilter,
+           VerSpecificParentBuildFilter,
         ]
 
         for f in tmp:

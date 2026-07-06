@@ -1,0 +1,50 @@
+---
+
+##
+## optionally read registry login creds from controller env
+##
+
+  - name: query controller ENV for registry login credentials
+    set_fact:
+      _tmp_user: >-
+         {{ lookup('ansible.builtin.env',
+           _upload_credsrc_iter.value.user_var, default=None
+         ) }}
+      _tmp_pw: >-
+         {{ lookup('ansible.builtin.env',
+           _upload_credsrc_iter.value.pw_var, default=None
+         ) }}
+    no_log: "{{ docker_build.hide_secrets }}"
+
+
+  - name: succesfully got registry login creds from controller ENV
+    set_fact:
+      _tmp_login_args: >-
+         {{ _tmp_login_args | ansible.builtin.combine({
+              'username': _tmp_user, 'password': _tmp_pw,
+            }) }}
+    when: _tmp_user is truthy and _tmp_pw is truthy
+    no_log: "{{ docker_build.hide_secrets }}"
+
+
+  - name: could not get login USER from controller ENV
+    set_fact:
+      _tmp_cred_obtain_err_reason: >-
+        Could not get login USER from controller ENV
+    when: _tmp_user is falsy and _tmp_pw is truthy
+
+
+  - name: could not get login PASSWORD from controller ENV
+    set_fact:
+      _tmp_cred_obtain_err_reason: >-
+        Could not get login PASSWORD from controller ENV
+    when: _tmp_user is truthy and _tmp_pw is falsy
+
+
+  - name: >-
+      could neither get registry login USER nor PASSWORD from controller ENV
+    set_fact:
+      _tmp_cred_obtain_err_reason: >-
+        Could neither get registry login USER nor PASSWORD from controller ENV
+    when: _tmp_user is falsy and _tmp_pw is falsy
+

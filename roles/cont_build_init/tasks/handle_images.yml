@@ -79,7 +79,7 @@
             when: not _cur_dockimg.auto_versioning.fixed_only
 
         when: >-
-          _cur_dockimg.auto_versioning.get('fixed_versions', False)
+          _cur_dockimg.auto_versioning.get('fixed_versions', False) is truthy
 
 
       - ansible.builtin.assert:

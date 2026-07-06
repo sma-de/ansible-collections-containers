@@ -1,0 +1,61 @@
+---
+
+##
+## optionally handle container reg logins if needed
+##
+
+  - set_fact:
+      _tmp_login_args: {}
+
+
+    ## go through all defined potential registry cred sources until one hits
+  - include_tasks: handle_cred_source/main.yml
+    loop: >-
+      {{ _upload_reg_iter.value.upload_creds | dict2items }}
+    loop_control:
+      loop_var: _upload_credsrc_iter
+      break_when:
+        - _tmp_login_args is truthy
+
+
+  - name: ensure registry login is possible or optional
+    ansible.builtin.assert:
+      that:
+        - >-
+          _tmp_login_args is truthy
+          or not _upload_reg_iter.value.login_mandatory
+      fail_msg: >-
+        Failed to obtain any valid credential set from defined
+        upload credential sources of upload registry
+        '{{ _upload_reg_iter.key }}'. Make sure that at least
+        one source is working all the time or make login
+        optional by setting 'login_mandatory' flag to false.
+
+
+  - block:
+
+      - name: combine registry login args with defaults
+        set_fact:
+          _tmp_login_args: >-
+             {{ _tmp_login_args | ansible.builtin.combine(
+                  _upload_reg_iter.value.upload_creds_defaults
+                ) }}
+        no_log: "{{ docker_build.hide_secrets }}"
+
+      - name: log in to registry '{{ _upload_reg_iter.key }}'
+        community.docker.docker_login: >-
+          {{ _tmp_login_args }}
+
+      - set_fact:
+          _registry_logins: >-
+             {{ _registry_logins | ansible.builtin.combine({
+                  _upload_reg_iter.key: _upload_reg_iter.value,
+                }) }}
+
+    when: _tmp_login_args is truthy
+
+
+  - name: clear tmp secret vars
+    set_fact:
+      _tmp_login_args:
+

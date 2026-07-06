@@ -58,7 +58,7 @@
 
     ## handle unpacking when requested
   - include_tasks: handle_unpacking.yml
-    when: _iter_packinst.destination.unpacking
+    when: _iter_packinst.destination.unpacking is truthy
 
 
     ## if downloaded maven artifact is actually a
@@ -68,6 +68,6 @@
     vars:
       mvn_artifact_dlpath: "{{ _tmp_last_mvn_artifact_status.dest }}"
     when: >-
-      not _iter_packinst.destination.unpacking
-      and _iter_packinst.destination.install
+      _iter_packinst.destination.unpacking is falsy
+      and _iter_packinst.destination.install is truthy
 

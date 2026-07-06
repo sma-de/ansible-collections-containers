@@ -1,0 +1,23 @@
+---
+
+  - set_fact:
+      _tmp_cred_obtain_err_reason: ""
+
+
+  - include_tasks: >-
+      cred_source_types/{{ _upload_credsrc_iter.value.type }}/main.yml
+
+
+  - name: ensure credentials found or source is optional
+    ansible.builtin.assert:
+      that:
+        - >-
+          not _upload_credsrc_iter.value.mandatory
+          or _tmp_login_args is truthy
+      fail_msg: >-
+        Could not obtain credentials from mandatory credential source
+        '{{ _upload_credsrc_iter.key }}' for upload registry
+        '{{ _upload_reg_iter.key }}'.
+        Reason: {{ _tmp_cred_obtain_err_reason }}. Either make this
+        credential source optional or ensure that it never fails.
+

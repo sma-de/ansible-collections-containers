@@ -28,6 +28,15 @@
     when: >-
       (_autovcfg_iter.parent_tag | default(False)) is truthy
 
+  - set_fact:
+      _tmp_cur_autover: >-
+         {{ _tmp_cur_autover | ansible.builtin.combine({
+              'parent_build': _autovcfg_iter.parent_build,
+            })
+         }}
+    when: >-
+      (_autovcfg_iter.parent_build | default(False)) is truthy
+
 
   - name: make version tag for raw version in
     set_fact:

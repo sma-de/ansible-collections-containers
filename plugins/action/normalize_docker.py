@@ -247,6 +247,10 @@ def get_docker_parent_infos(pluginref, img_cfg):
 class DockerConfigNormalizer(NormalizerBase):
 
     def __init__(self, pluginref, *args, **kwargs):
+        self._add_defaultsetter(kwargs,
+          'hide_secrets', DefaultSetterConstant(True)
+        )
+
         subnorms = kwargs.setdefault('sub_normalizers', [])
         subnorms += [
           DockConfNormMeta(pluginref),
@@ -262,15 +266,15 @@ class DockerConfigNormalizer(NormalizerBase):
 class DockConfNormMeta(NormalizerBase):
 
     def __init__(self, pluginref, *args, **kwargs):
-        self._add_defaultsetter(kwargs, 
+        self._add_defaultsetter(kwargs,
           'create', DefaultSetterConstant(False)
         )
 
-        self._add_defaultsetter(kwargs, 
+        self._add_defaultsetter(kwargs,
           'exports', DefaultSetterConstant({})
         )
 
-        self._add_defaultsetter(kwargs, 'facts', 
+        self._add_defaultsetter(kwargs, 'facts',
           DefaultSetterConstant(['distribution_version', 'os_family'])
         )
 
@@ -324,11 +328,11 @@ class DockConfNormImageInstance(NormalizerNamed):
           'sys_path', DefaultSetterConstant({})
         )
 
-        self._add_defaultsetter(kwargs, 
+        self._add_defaultsetter(kwargs,
           'tags', DefaultSetterConstant([])
         )
 
-        self._add_defaultsetter(kwargs, 
+        self._add_defaultsetter(kwargs,
           'environment', DefaultSetterConstant(dict())
         )
 

@@ -16,6 +16,19 @@
                 ),
               })
          }}
+      _cur_parent_build_cfg: >-
+         {{ _dbimg_iter.value | smabot.containers.verspecific_parent_build(
+              version_cfg=_autovcfg_iter
+            )
+         }}
+
+
+  - block:
+
+      - include_tasks: handle_parent_prebuild/main.yml
+
+    when: >-
+      _cur_parent_build_cfg.enabled is truthy
 
 
     ##

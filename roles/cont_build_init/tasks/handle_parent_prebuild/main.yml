@@ -1,0 +1,99 @@
+---
+
+##
+## if necessary prebuild parent image to use classic docker style
+##
+
+  - set_fact:
+      _tmp_dockbuild_dir: >-
+         {{ _cur_parent_build_cfg.mod_configs.build.path
+            | default(None, True) }}
+      _tmp_keep_dockbuild_dir: true
+      _tmp_modargs_build_img: >-
+         {{ _cur_parent_build_cfg.mod_configs.build }}
+      _registry_logins: {}
+
+
+  - block:
+
+      - block:
+
+          - set_fact:
+              _tmp_keep_dockbuild_dir: false
+
+          - name: create temporary container parent build dir
+            ansible.builtin.tempfile:
+              state: directory
+            register: _tmp_modres_tmpdir
+
+          - set_fact:
+              _tmp_dockbuild_dir: >-
+                 {{ _tmp_modres_tmpdir.path }}
+
+        when: _tmp_dockbuild_dir is falsy
+
+
+      - name: download container buildfile to build dir
+        ansible.builtin.get_url:
+          url: "{{ _cur_parent_build_cfg.build_context.dockerfile_by_url }}"
+          dest: "{{ _tmp_dockbuild_dir }}/dockerfile"
+        register: _tmp_bf_download
+
+
+      - set_fact:
+          _tmp_modargs_build_img: >-
+            {{ _tmp_modargs_build_img | ansible.builtin.combine({
+                  'dockerfile': _tmp_bf_download.dest,
+                  'path': _tmp_dockbuild_dir,
+               })
+            }}
+
+    when: >-
+      (_cur_parent_build_cfg.build_context.dockerfile_by_url
+       | default(False)) is truthy
+
+
+  - include_tasks: handle_registry_logins/main.yml
+    loop: >-
+      {{ (_cur_parent_build_cfg.push_settings.upload_registries
+          | default({}, True) ) | dict2items }}
+    loop_control:
+      loop_var: _upload_reg_iter
+    when: >-
+      _cur_parent_build_cfg.push
+      and (_upload_reg_iter.value.upload_creds | default(False)) is truthy
+
+
+  - name: prebuild container parent image
+    community.docker.docker_image_build: >-
+      {{ _tmp_modargs_build_img }}
+
+
+  - name: clean registry logins after push
+    community.docker.docker_login:
+      state: absent
+      registry_url: "{{ _iter_contreg.key }}"
+    loop: "{{ _registry_logins | dict2items }}"
+    loop_control:
+      loop_var: _iter_contreg
+    when: not _iter_contreg.value.stay_logged_in
+
+
+  - name: >-
+      ensure parent image prebuild here is used as build
+      container starting point
+    set_fact:
+      _cur_img_parent: >-
+         {{ _cur_img_parent | ansible.builtin.combine({
+              'name': _tmp_modargs_build_img.name,
+              'tag': _tmp_modargs_build_img.tag,
+            })
+         }}
+
+
+  - name: delete temporary container parent build dir
+    ansible.builtin.file:
+      path: "{{ _tmp_dockbuild_dir }}"
+      state: absent
+    when: _tmp_keep_dockbuild_dir is falsy
+
