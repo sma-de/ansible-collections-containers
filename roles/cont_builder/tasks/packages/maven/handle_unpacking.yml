@@ -3,7 +3,7 @@
     ## unpack archive according to config
   - set_fact:
       _tmp_unarchive_args: >-
-        {{ dict() | combine(_iter_packinst.destination.config,
+        {{ dict() | ansible.builtin.combine(_iter_packinst.destination.config,
              {  'src': _tmp_last_mvn_artifact_status.dest,
                'dest': _iter_packinst.destination.path,
                'remote_src': true
@@ -21,7 +21,7 @@
       - set_fact:
           _tmp_unarchive_args: >-
             {{ _tmp_unarchive_args
-             | combine({ 'dest': _tmp_unpack_dir.path }) }}
+             | ansible.builtin.combine({ 'dest': _tmp_unpack_dir.path }) }}
 
     when: >-
        _iter_packinst.destination.singlefile is truthy

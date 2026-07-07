@@ -8,7 +8,7 @@
         set_fact:
           _tmp_post_inst_args: >-
             {{ _iter_packinst.destination.install.shell
-             | combine({
+             | ansible.builtin.combine({
                  'cmd': _iter_packinst.destination.install.shell.cmd.format(
                     ARTIFACT_DLPATH=mvn_artifact_dlpath
                   ),
@@ -26,7 +26,7 @@
         timeout: >-
           {{ _iter_packinst.destination.install.timeout | default(0, True) }}
 
-    when: _iter_packinst.destination.install.shell
+    when: _iter_packinst.destination.install.shell is truthy
 
 
     # TODO: make this optional??
