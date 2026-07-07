@@ -15,7 +15,7 @@
 
       - include_tasks: do_checksums.yml
         loop: >-
-          {{ (_iter_packinst.destination.unpacking.checksums | dict2items())[:1] }}
+          {{ (_iter_packinst.destination.unpacking.checksums | dict2items)[:1] }}
         loop_control:
           loop_var: _checksums_iter
         vars:
@@ -28,8 +28,8 @@
           _skip_mvn_artifact: "{{ smabot_base_do_checksum_result }}"
 
     when: >-
-      _iter_packinst.destination.unpacking
-      and _iter_packinst.destination.unpacking.checksums
+      _iter_packinst.destination.unpacking is truthy
+      and _iter_packinst.destination.unpacking.checksums is truthy
 
 
   - include_tasks: install_artifact.yml
