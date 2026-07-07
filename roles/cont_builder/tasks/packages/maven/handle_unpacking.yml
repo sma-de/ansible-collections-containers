@@ -24,8 +24,8 @@
              | combine({ 'dest': _tmp_unpack_dir.path }) }}
 
     when: >-
-       _iter_packinst.destination.singlefile
-       or _iter_packinst.destination.install
+       _iter_packinst.destination.singlefile is truthy
+       or _iter_packinst.destination.install is truthy
 
 
   - name: >-
@@ -71,7 +71,7 @@
           - set_fact:
               _tmp_post_inst_artpath: "{{ _iter_packinst.destination.path }}"
 
-        when: _iter_packinst.destination.singlefile
+        when: _iter_packinst.destination.singlefile is truthy
 
 
         ## if downloaded maven artifact is actually a
@@ -79,7 +79,7 @@
       - include_tasks: post_installer.yml
         vars:
           mvn_artifact_dlpath: "{{ _tmp_post_inst_artpath }}"
-        when: _iter_packinst.destination.install
+        when: _iter_packinst.destination.install is truthy
 
 
       # remove tmp unpack dir
@@ -88,8 +88,8 @@
           state: absent
 
     when: >-
-       _iter_packinst.destination.singlefile
-       or _iter_packinst.destination.install
+       _iter_packinst.destination.singlefile is truthy
+       or _iter_packinst.destination.install is truthy
 
 
     ## test unpacked checksum
