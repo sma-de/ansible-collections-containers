@@ -53,7 +53,9 @@
 
           - ansible.builtin.assert:
               that:
-                - _tmp_rq_in_dir.files or _pipreq_iter.value.optional
+                - >-
+                  _tmp_rq_in_dir.files is truthy
+                  or _pipreq_iter.value.optional
               fail_msg: >-
                 Could not find any requirements file in mandatory directory
                 source '{{ _pipreq_iter.value.src }}'
