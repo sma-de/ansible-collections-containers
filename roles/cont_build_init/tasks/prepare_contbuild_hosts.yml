@@ -59,7 +59,7 @@
             _cur_dockimg.auto_versioning.update_parent.method_type }}.yml
 
     when: >-
-      _cur_dockimg.get('auto_versioning', False)
+      _cur_dockimg.get('auto_versioning', False) is truthy
       and _cur_dockimg.auto_versioning.update_parent.enabled
 
 
